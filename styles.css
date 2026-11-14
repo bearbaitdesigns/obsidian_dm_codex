@@ -1,0 +1,136 @@
+/* DM Codex */
+.dmc-btn { display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:2px; }
+.dmc-btn-icon { display:inline-flex; }
+.dmc-btn-icon svg { width:15px; height:15px; }
+.dmc-row { display:flex; align-items:center; gap:6px; }
+.dmc-wrap { flex-wrap:wrap; }
+.dmc-spread { justify-content:space-between; }
+.dmc-muted { color:var(--text-muted); font-size:var(--font-ui-small); }
+.dmc-input { width:100%; margin:6px 0; }
+.dmc-search { width:180px; margin:0; }
+.dmc-modal h3 { margin-top:0; }
+.modal.mod-dmc-wide, .dmc-wide { min-width: min(640px, 90vw); }
+.dmc-dashboard { padding: 16px 20px; }
+.dmc-header h2 { margin:0; font-family: var(--font-text); letter-spacing:.02em; }
+.dmc-tabs { display:flex; flex-wrap:wrap; gap:4px; margin:12px 0; border-bottom:1px solid var(--background-modifier-border); padding-bottom:8px; }
+.dmc-tab.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.dmc-card { background: var(--background-secondary); border:1px solid var(--background-modifier-border); border-radius:10px; padding:12px 14px; margin-bottom:12px; }
+.dmc-card h4 { margin:0 0 8px; display:flex; align-items:center; gap:6px; }
+.dmc-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:12px; }
+.dmc-grid .dmc-card { margin:0; }
+.dmc-stats { display:grid; grid-template-columns: repeat(auto-fill, minmax(110px,1fr)); gap:8px; margin-bottom:12px; }
+.dmc-stat { background: var(--background-secondary); border:1px solid var(--background-modifier-border); border-radius:10px; padding:10px; text-align:center; cursor:pointer; }
+.dmc-stat:hover { border-color: var(--interactive-accent); }
+.dmc-stat-icon svg { width:18px; height:18px; color: var(--text-accent); }
+.dmc-stat-num { font-size:1.6em; font-weight:700; }
+.dmc-stat-label { color: var(--text-muted); font-size: var(--font-ui-small); }
+.dmc-line { padding:3px 0; border-bottom:1px dashed var(--background-modifier-border); }
+.dmc-line:last-child { border-bottom:none; }
+.dmc-pill { display:inline-block; font-size: var(--font-ui-smaller); padding:0 7px; margin-left:6px; border-radius:999px; background: var(--background-modifier-hover); color: var(--text-muted); }
+.dmc-pill:empty { display:none; }
+.dmc-table { width:100%; border-collapse:collapse; font-size: var(--font-ui-small); }
+.dmc-table th { text-align:left; text-transform:capitalize; color: var(--text-muted); border-bottom:1px solid var(--background-modifier-border); padding:4px 6px; }
+.dmc-table td { padding:4px 6px; border-bottom:1px solid var(--background-modifier-border-hover); }
+.dmc-table tr:hover td { background: var(--background-modifier-hover); }
+.dmc-block { border:1px solid var(--background-modifier-border); border-radius:8px; padding:8px 10px; background: var(--background-primary-alt); }
+.dmc-dice-result { margin-top:6px; min-height:1.4em; }
+.dmc-dice-total { font-weight:700; font-size:1.3em; color: var(--text-accent); }
+.dmc-dice-log { max-height:180px; overflow:auto; font-family: var(--font-monospace); font-size: var(--font-ui-small); margin-top:8px; }
+.dmc-dice-line { padding:2px 0; }
+.dmc-sq-out { margin-bottom:8px; }
+.dmc-sq-line { display:grid; grid-template-columns: 130px 1fr 18px; gap:8px; padding:4px 6px; border-radius:6px; cursor:pointer; }
+.dmc-sq-line:hover { background: var(--background-modifier-hover); }
+.dmc-sq-label { font-weight:600; color: var(--text-accent); }
+.dmc-reroll { opacity:0; }
+.dmc-sq-line:hover .dmc-reroll { opacity:.6; }
+.dmc-reroll svg { width:14px; height:14px; }
+.dmc-npc-name { font-size:1.3em; font-weight:700; }
+.dmc-error { color: var(--text-error); }
+/* custom callouts used across the vault (also shipped as the dm-vault-callouts CSS snippet) */
+/* DM Vault custom callouts. A CSS snippet, so it works with plugins disabled.
+   Colours are set explicitly (not only via --callout-color) so themes can't wash them out. */
+body .callout[data-callout="quest"], body.theme-dark .callout[data-callout="quest"], body.theme-light .callout[data-callout="quest"], .markdown-rendered .callout[data-callout="quest"], .markdown-source-view .callout[data-callout="quest"] {
+  --callout-color: 196, 140, 40 !important;
+  --callout-icon: lucide-scroll !important;
+  background-color: rgba(196, 140, 40, 0.12) !important;
+  border-left: 4px solid rgb(196, 140, 40) !important;
+  border-color: rgb(196, 140, 40) !important;
+}
+body .callout[data-callout="quest"] .callout-title, body.theme-dark .callout[data-callout="quest"] .callout-title, body.theme-light .callout[data-callout="quest"] .callout-title, .markdown-rendered .callout[data-callout="quest"] .callout-title, .markdown-source-view .callout[data-callout="quest"] .callout-title, body .callout[data-callout="quest"] .callout-title-inner, body.theme-dark .callout[data-callout="quest"] .callout-title-inner, body.theme-light .callout[data-callout="quest"] .callout-title-inner, .markdown-rendered .callout[data-callout="quest"] .callout-title-inner, .markdown-source-view .callout[data-callout="quest"] .callout-title-inner, body .callout[data-callout="quest"] .callout-icon, body.theme-dark .callout[data-callout="quest"] .callout-icon, body.theme-light .callout[data-callout="quest"] .callout-icon, .markdown-rendered .callout[data-callout="quest"] .callout-icon, .markdown-source-view .callout[data-callout="quest"] .callout-icon, body .callout[data-callout="quest"] .callout-fold, body.theme-dark .callout[data-callout="quest"] .callout-fold, body.theme-light .callout[data-callout="quest"] .callout-fold, .markdown-rendered .callout[data-callout="quest"] .callout-fold, .markdown-source-view .callout[data-callout="quest"] .callout-fold {
+  color: rgb(196, 140, 40) !important;
+}
+body .callout[data-callout="quest"] .callout-icon svg, body.theme-dark .callout[data-callout="quest"] .callout-icon svg, body.theme-light .callout[data-callout="quest"] .callout-icon svg, .markdown-rendered .callout[data-callout="quest"] .callout-icon svg, .markdown-source-view .callout[data-callout="quest"] .callout-icon svg {
+  color: rgb(196, 140, 40) !important;
+  stroke: rgb(196, 140, 40) !important;
+}
+body .callout[data-callout="read-aloud"], body.theme-dark .callout[data-callout="read-aloud"], body.theme-light .callout[data-callout="read-aloud"], .markdown-rendered .callout[data-callout="read-aloud"], .markdown-source-view .callout[data-callout="read-aloud"] {
+  --callout-color: 140, 100, 200 !important;
+  --callout-icon: lucide-book-open !important;
+  background-color: rgba(140, 100, 200, 0.12) !important;
+  border-left: 4px solid rgb(140, 100, 200) !important;
+  border-color: rgb(140, 100, 200) !important;
+}
+body .callout[data-callout="read-aloud"] .callout-title, body.theme-dark .callout[data-callout="read-aloud"] .callout-title, body.theme-light .callout[data-callout="read-aloud"] .callout-title, .markdown-rendered .callout[data-callout="read-aloud"] .callout-title, .markdown-source-view .callout[data-callout="read-aloud"] .callout-title, body .callout[data-callout="read-aloud"] .callout-title-inner, body.theme-dark .callout[data-callout="read-aloud"] .callout-title-inner, body.theme-light .callout[data-callout="read-aloud"] .callout-title-inner, .markdown-rendered .callout[data-callout="read-aloud"] .callout-title-inner, .markdown-source-view .callout[data-callout="read-aloud"] .callout-title-inner, body .callout[data-callout="read-aloud"] .callout-icon, body.theme-dark .callout[data-callout="read-aloud"] .callout-icon, body.theme-light .callout[data-callout="read-aloud"] .callout-icon, .markdown-rendered .callout[data-callout="read-aloud"] .callout-icon, .markdown-source-view .callout[data-callout="read-aloud"] .callout-icon, body .callout[data-callout="read-aloud"] .callout-fold, body.theme-dark .callout[data-callout="read-aloud"] .callout-fold, body.theme-light .callout[data-callout="read-aloud"] .callout-fold, .markdown-rendered .callout[data-callout="read-aloud"] .callout-fold, .markdown-source-view .callout[data-callout="read-aloud"] .callout-fold {
+  color: rgb(140, 100, 200) !important;
+}
+body .callout[data-callout="read-aloud"] .callout-icon svg, body.theme-dark .callout[data-callout="read-aloud"] .callout-icon svg, body.theme-light .callout[data-callout="read-aloud"] .callout-icon svg, .markdown-rendered .callout[data-callout="read-aloud"] .callout-icon svg, .markdown-source-view .callout[data-callout="read-aloud"] .callout-icon svg {
+  color: rgb(140, 100, 200) !important;
+  stroke: rgb(140, 100, 200) !important;
+}
+body .callout[data-callout="secret"], body.theme-dark .callout[data-callout="secret"], body.theme-light .callout[data-callout="secret"], .markdown-rendered .callout[data-callout="secret"], .markdown-source-view .callout[data-callout="secret"] {
+  --callout-color: 200, 45, 45 !important;
+  --callout-icon: lucide-eye-off !important;
+  background-color: rgba(200, 45, 45, 0.12) !important;
+  border-left: 4px solid rgb(200, 45, 45) !important;
+  border-color: rgb(200, 45, 45) !important;
+}
+body .callout[data-callout="secret"] .callout-title, body.theme-dark .callout[data-callout="secret"] .callout-title, body.theme-light .callout[data-callout="secret"] .callout-title, .markdown-rendered .callout[data-callout="secret"] .callout-title, .markdown-source-view .callout[data-callout="secret"] .callout-title, body .callout[data-callout="secret"] .callout-title-inner, body.theme-dark .callout[data-callout="secret"] .callout-title-inner, body.theme-light .callout[data-callout="secret"] .callout-title-inner, .markdown-rendered .callout[data-callout="secret"] .callout-title-inner, .markdown-source-view .callout[data-callout="secret"] .callout-title-inner, body .callout[data-callout="secret"] .callout-icon, body.theme-dark .callout[data-callout="secret"] .callout-icon, body.theme-light .callout[data-callout="secret"] .callout-icon, .markdown-rendered .callout[data-callout="secret"] .callout-icon, .markdown-source-view .callout[data-callout="secret"] .callout-icon, body .callout[data-callout="secret"] .callout-fold, body.theme-dark .callout[data-callout="secret"] .callout-fold, body.theme-light .callout[data-callout="secret"] .callout-fold, .markdown-rendered .callout[data-callout="secret"] .callout-fold, .markdown-source-view .callout[data-callout="secret"] .callout-fold {
+  color: rgb(200, 45, 45) !important;
+}
+body .callout[data-callout="secret"] .callout-icon svg, body.theme-dark .callout[data-callout="secret"] .callout-icon svg, body.theme-light .callout[data-callout="secret"] .callout-icon svg, .markdown-rendered .callout[data-callout="secret"] .callout-icon svg, .markdown-source-view .callout[data-callout="secret"] .callout-icon svg {
+  color: rgb(200, 45, 45) !important;
+  stroke: rgb(200, 45, 45) !important;
+}
+body .callout[data-callout="rule"], body.theme-dark .callout[data-callout="rule"], body.theme-light .callout[data-callout="rule"], .markdown-rendered .callout[data-callout="rule"], .markdown-source-view .callout[data-callout="rule"] {
+  --callout-color: 60, 130, 200 !important;
+  --callout-icon: lucide-scale !important;
+  background-color: rgba(60, 130, 200, 0.12) !important;
+  border-left: 4px solid rgb(60, 130, 200) !important;
+  border-color: rgb(60, 130, 200) !important;
+}
+body .callout[data-callout="rule"] .callout-title, body.theme-dark .callout[data-callout="rule"] .callout-title, body.theme-light .callout[data-callout="rule"] .callout-title, .markdown-rendered .callout[data-callout="rule"] .callout-title, .markdown-source-view .callout[data-callout="rule"] .callout-title, body .callout[data-callout="rule"] .callout-title-inner, body.theme-dark .callout[data-callout="rule"] .callout-title-inner, body.theme-light .callout[data-callout="rule"] .callout-title-inner, .markdown-rendered .callout[data-callout="rule"] .callout-title-inner, .markdown-source-view .callout[data-callout="rule"] .callout-title-inner, body .callout[data-callout="rule"] .callout-icon, body.theme-dark .callout[data-callout="rule"] .callout-icon, body.theme-light .callout[data-callout="rule"] .callout-icon, .markdown-rendered .callout[data-callout="rule"] .callout-icon, .markdown-source-view .callout[data-callout="rule"] .callout-icon, body .callout[data-callout="rule"] .callout-fold, body.theme-dark .callout[data-callout="rule"] .callout-fold, body.theme-light .callout[data-callout="rule"] .callout-fold, .markdown-rendered .callout[data-callout="rule"] .callout-fold, .markdown-source-view .callout[data-callout="rule"] .callout-fold {
+  color: rgb(60, 130, 200) !important;
+}
+body .callout[data-callout="rule"] .callout-icon svg, body.theme-dark .callout[data-callout="rule"] .callout-icon svg, body.theme-light .callout[data-callout="rule"] .callout-icon svg, .markdown-rendered .callout[data-callout="rule"] .callout-icon svg, .markdown-source-view .callout[data-callout="rule"] .callout-icon svg {
+  color: rgb(60, 130, 200) !important;
+  stroke: rgb(60, 130, 200) !important;
+}
+body .callout[data-callout="npc"], body.theme-dark .callout[data-callout="npc"], body.theme-light .callout[data-callout="npc"], .markdown-rendered .callout[data-callout="npc"], .markdown-source-view .callout[data-callout="npc"] {
+  --callout-color: 50, 160, 90 !important;
+  --callout-icon: lucide-user !important;
+  background-color: rgba(50, 160, 90, 0.12) !important;
+  border-left: 4px solid rgb(50, 160, 90) !important;
+  border-color: rgb(50, 160, 90) !important;
+}
+body .callout[data-callout="npc"] .callout-title, body.theme-dark .callout[data-callout="npc"] .callout-title, body.theme-light .callout[data-callout="npc"] .callout-title, .markdown-rendered .callout[data-callout="npc"] .callout-title, .markdown-source-view .callout[data-callout="npc"] .callout-title, body .callout[data-callout="npc"] .callout-title-inner, body.theme-dark .callout[data-callout="npc"] .callout-title-inner, body.theme-light .callout[data-callout="npc"] .callout-title-inner, .markdown-rendered .callout[data-callout="npc"] .callout-title-inner, .markdown-source-view .callout[data-callout="npc"] .callout-title-inner, body .callout[data-callout="npc"] .callout-icon, body.theme-dark .callout[data-callout="npc"] .callout-icon, body.theme-light .callout[data-callout="npc"] .callout-icon, .markdown-rendered .callout[data-callout="npc"] .callout-icon, .markdown-source-view .callout[data-callout="npc"] .callout-icon, body .callout[data-callout="npc"] .callout-fold, body.theme-dark .callout[data-callout="npc"] .callout-fold, body.theme-light .callout[data-callout="npc"] .callout-fold, .markdown-rendered .callout[data-callout="npc"] .callout-fold, .markdown-source-view .callout[data-callout="npc"] .callout-fold {
+  color: rgb(50, 160, 90) !important;
+}
+body .callout[data-callout="npc"] .callout-icon svg, body.theme-dark .callout[data-callout="npc"] .callout-icon svg, body.theme-light .callout[data-callout="npc"] .callout-icon svg, .markdown-rendered .callout[data-callout="npc"] .callout-icon svg, .markdown-source-view .callout[data-callout="npc"] .callout-icon svg {
+  color: rgb(50, 160, 90) !important;
+  stroke: rgb(50, 160, 90) !important;
+}
+
+/* read-aloud text in italics so it stands out at the table */
+body .callout[data-callout="read-aloud"] .callout-content { font-style: italic; }
+/* updater */
+.dmc-update-banner { border-left: 4px solid var(--interactive-accent); display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.modal.dmc-update-modal { width: min(760px, 94vw); }
+.dmc-upd-sec { margin: 8px 0; border:1px solid var(--background-modifier-border); border-radius:8px; padding:6px 10px; }
+.dmc-upd-sec summary { cursor:pointer; font-weight:600; }
+.dmc-upd-sec.is-add summary { color: var(--color-green); }
+.dmc-upd-sec.is-update summary { color: var(--color-blue); }
+.dmc-upd-sec.is-kept summary { color: #e0a030; }
+.dmc-upd-list { max-height: 220px; overflow:auto; margin-top:6px; }
+.dmc-upd-row { display:flex; align-items:center; gap:6px; padding:2px 0; font-size: var(--font-ui-small); flex-wrap:wrap; }
+.dmc-upd-path { flex:1; min-width: 200px; }
+.dmc-pack-preview { max-height: 65vh; overflow:auto; }

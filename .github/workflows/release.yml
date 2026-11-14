@@ -1,0 +1,66 @@
+name: Release
+
+# Keeps the GitHub release for the current manifest.json version up to date, which is what BRAT installs from.
+#   - Every push to main (or a manual run) builds main.js and creates the release for that version,
+#     or, if it already exists, replaces its files with the fresh build.
+#   - Bump "version" in manifest.json (and add it to versions.json) to publish a NEW release.
+#     BRAT only offers users an update when the version number goes up.
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read and check the version
+        id: version
+        run: |
+          v=$(jq -r .version manifest.json)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          jq -e --arg v "$v" 'has($v)' versions.json > /dev/null || { echo "::error::versions.json has no entry for $v"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$v" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match manifest.json version $v"; exit 1
+          fi
+
+      - name: Build main.js (embeds the content pack)
+        run: |
+          python3 tools/build.py
+          node --check main.js
+
+      - name: Starter vault and update zip (uses the latest DM Statblocks release)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p out statblocks
+          gh release download --repo "${{ github.repository_owner }}/obsidian_dm_statblocks" \
+            --pattern main.js --pattern manifest.json --pattern styles.css --dir statblocks --clobber
+          python3 tools/build.py --vault "out/DM Vault" --statblocks statblocks --zip --update-zip out/DM-Vault-Update.zip
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          files="main.js manifest.json styles.css"
+          [ -f out/DM-Vault.zip ] && files="$files out/DM-Vault.zip"
+          [ -f out/DM-Vault-Update.zip ] && files="$files out/DM-Vault-Update.zip"
+          if gh release view "$VERSION" > /dev/null 2>&1; then
+            gh release upload "$VERSION" $files --clobber
+            echo "Updated the files on release $VERSION"
+          else
+            gh release create "$VERSION" $files --target "$GITHUB_SHA" --title "DM Codex $VERSION" --generate-notes
+            echo "Created release $VERSION"
+          fi
