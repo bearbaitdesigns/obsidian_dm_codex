@@ -21,6 +21,7 @@ function setIcon(el, name) {
 }
 
 const VIEW_TYPE = 'dm-codex-dashboard';
+const DELETABLE_TYPES = ['encounter'];
 
 /* ------------------------------------------------------------------ */
 /* Note types                                                          */
@@ -351,6 +352,7 @@ class NpcGenModal extends Modal {
 
 const TABS = [
   ['overview', 'Overview', 'castle'],
+  ['idea', 'Ideas & Arcs', 'lightbulb'],
   ['session', 'Sessions', 'scroll-text'],
   ['player', 'Party', 'users'],
   ['npc', 'NPCs', 'user-round'],
@@ -361,7 +363,6 @@ const TABS = [
   ['monster', 'Bestiary', 'skull'],
   ['armory', 'Armory', 'sword'],
   ['spell', 'Spells', 'wand-sparkles'],
-  ['idea', 'Ideas & Arcs', 'lightbulb'],
   ['shops', 'Taverns & Shops', 'store'],
   ['tables', 'Random Tables', 'table'],
   ['tools', 'Generators', 'dices'],
@@ -411,7 +412,8 @@ class DashboardView extends ItemView {
     const body = el.createDiv({ cls: 'dmc-body' });
     if (this.tab === 'overview') this.renderOverview(body);
     else if (this.tab === 'tools') this.renderTools(body);
-    else if (this.tab === 'idea') { this.renderList(body, 'idea'); this.renderList(body, 'arc'); this.renderList(body, 'prep'); }
+    else if (this.tab === 'idea') { this.renderList(body, 'idea'); this.renderList(body, 'arc'); }
+    else if (this.tab === 'session') { this.renderList(body, 'session'); this.renderList(body, 'prep'); }
     else if (this.tab === 'faction') { this.renderList(body, 'faction'); }
     else if (this.tab === 'armory') { this.plugin.renderArmory(body, this); ['weapon', 'armor', 'gear', 'item'].forEach(k => this.renderList(body, k, { collapsible: true })); }
     else if (this.tab === 'spell') { const c = body.createDiv({ cls: 'dmc-card' }); c.createEl('h4', { text: 'Spells' }); this.plugin.renderSpellBrowser(c, ''); this.plugin.renderSpellGenWidget(this.collapsible(body, 'spellgen', 'Random spell generator', 'sparkles'), null); }
@@ -583,6 +585,8 @@ class DashboardView extends ItemView {
       const t = tableWrap.createEl('table', { cls: 'dmc-table' });
       const tr = t.createEl('thead').createEl('tr'); tr.createEl('th', { text: 'Name' });
       cols.forEach(c => tr.createEl('th', { text: c.replace(/_/g, ' ') }));
+      const deletable = DELETABLE_TYPES.includes(type);
+      if (deletable) tr.createEl('th', { cls: 'dmc-col-actions' });
       const tb = t.createEl('tbody');
       files.forEach(f => {
         const fm = p.fm(f); const r = tb.createEl('tr');
@@ -597,6 +601,11 @@ class DashboardView extends ItemView {
           });
           else td.setText(stripLinks(v));
         });
+        if (deletable) {
+          const td = r.createEl('td', { cls: 'dmc-col-actions' });
+          const b = button(td, '', 'trash-2', () => p.confirmDelete(f), 'dmc-icon-btn dmc-danger');
+          b.setAttr('aria-label', 'Delete ' + f.basename); b.setAttr('title', 'Delete ' + f.basename);
+        }
       });
     };
     search.addEventListener('input', () => { this.filter = search.value; draw(); });
@@ -1549,7 +1558,27 @@ class ItemBuilderModal extends Modal {
   onClose() { this.contentEl.empty(); }
 }
 
+class DeleteNoteModal extends Modal {
+  constructor(app, file, onDone) { super(app); this.file = file; this.onDone = onDone; }
+  onOpen() {
+    const c = this.contentEl; c.addClass('dmc-modal');
+    const f = this.file;
+    const linked = Object.entries(this.app.metadataCache.resolvedLinks || {}).filter(([src, to]) => src !== f.path && to && to[f.path]).length;
+    c.createEl('h3', { text: 'Delete “' + f.basename + '”?' });
+    c.createEl('p', { text: 'The note goes to the trash, so you can still recover it.' + (linked ? ' ' + linked + ' note' + (linked > 1 ? 's link' : ' links') + ' to it; those links will show as unresolved.' : '') });
+    const r = c.createDiv({ cls: 'dmc-row' });
+    button(r, 'Delete', 'trash-2', async () => {
+      this.close();
+      if (this.app.fileManager.trashFile) await this.app.fileManager.trashFile(f); else await this.app.vault.trash(f, true);
+      new Notice('Deleted: ' + f.basename); if (this.onDone) this.onDone();
+    }, 'mod-warning');
+    button(r, 'Cancel', null, () => this.close());
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
 Object.assign(DMCodexPlugin.prototype, {
+  confirmDelete(file, onDone) { new DeleteNoteModal(this.app, file, onDone).open(); },
   openItemBuilder(kind, init) { new ItemBuilderModal(this, kind, init).open(); },
   /** Give an armory item to a character: catalog items are copied, owned items change hands. */
   async giveItem(file) {

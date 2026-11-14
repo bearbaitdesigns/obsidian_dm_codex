@@ -106,10 +106,8 @@ tags: [session]
 - [ ]
 
 ## Encounters
-```encounter
-title: Possible fight
-monsters:
-  - Goblin Warrior x3
+*Add saved encounters or build new ones. New encounters are saved to the Encounters tab and linked to this session.*
+```session-encounters
 ```
 
 ## Session log
@@ -157,10 +155,9 @@ status: active
 ## 6. NPCs
 -
 
-## 7. Monsters
-```encounter
-monsters:
-  - Bandit x4
+## 7. Monsters & encounters
+*Plan encounters here. New ones are saved to the Encounters tab, linked to this prep and (if `for_session` is set) to the session.*
+```session-encounters
 ```
 
 ## 8. Rewards
@@ -478,6 +475,7 @@ difficulty: ""
 xp: 0
 location: ""
 session: ""
+prep: ""
 environment: []
 tags: [encounter]
 ---
@@ -796,6 +794,7 @@ title: Weather
 - **CR check** — the builder reads the stats you've entered (effective HP after resistances and Legendary Resistance, AC, damage per round over three rounds with recharge abilities, attack bonus or save DC), works out a **defensive** and **offensive** CR, and compares their average with the CR you chose: ✓ when it's within one step, ▲/▼ with a one-click **Use CR X** when it isn't. *Apply typical AC/HP* goes the other way and fits the stats to your chosen CR.
 - **Random monster** — shows the **suggested CR** for your settings as you change them (and in CR mode, what difficulty that CR is for your party and which CR would make a Moderate fight). It asks for **party level, party size and difficulty** (Low / Moderate / High) or a CR, how many monsters, creature type, role (brute, skirmisher, controller, leader) and boss (legendary actions). It builds a full statblock you can tweak in the builder, save to the Bestiary, or send to the tracker.
 - **Encounters** — the **encounter builder** (shield icon in the ribbon, *DM Statblocks: Build a new encounter*, or the Encounters tab) shows live 2024 difficulty against your party. Add monsters from the Bestiary, click **Suggest encounter** (filters by environment), or **Generate new monster** to fill the remaining budget. Save as an encounter note in `Campaign/Encounters` (linked to a place and session), insert into the current note, or run it now. Encounter notes show up on [[Home]], on their place's page, and in the dashboard.
+- **Encounters in sessions and prep** — every Session and Session Prep note has an **Encounters** panel. Click **Add existing** to link a saved encounter, **New encounter** to build one (it's saved to the Encounters tab and linked to the session or prep automatically), or **Suggest** to start from a suggestion. Each encounter in the panel can be **Run** in the tracker, marked **used**, **edited** or **unlinked** (unlinking keeps the encounter). For older session notes, run *DM Statblocks: Insert encounters panel*. **Delete** an encounter from the trash icon on the dashboard's Encounters tab, the **Delete encounter** button on the encounter itself (or in its editor), or *DM Statblocks: Delete an encounter*. It goes to the trash, so it can be recovered. An encounter block inside a session note has **Remove** instead, which deletes just that block.
 
 ## Armory
 - [[Armory Index|Armory]] holds catalogs for all 2024 **weapons** (with mastery), **armor**, common **gear**, and **magic items**.
@@ -982,7 +981,7 @@ randommonster
 tracker
 ```
 
-**Build a new encounter** (button above, the shield icon in the ribbon, or *DM Statblocks: Build a new encounter*) to pick monsters from the Bestiary, let it **suggest** an encounter for your party's level, environment and difficulty, or **generate a brand-new monster** that fits the remaining XP budget. Save it as an encounter note (in `Campaign/Encounters`), insert it into a session, or run it straight away. Every `encounter` block has **Edit** and **Save as encounter note** buttons.
+**Build a new encounter** (button above, the shield icon in the ribbon, or *DM Statblocks: Build a new encounter*) to pick monsters from the Bestiary, let it **suggest** an encounter for your party's level, environment and difficulty, or **generate a brand-new monster** that fits the remaining XP budget. Save it as an encounter note (in `Campaign/Encounters`), insert it into a session, or run it straight away. Every `encounter` block has **Edit** and **Save as encounter note** buttons, plus **Delete encounter** (in an encounter note) or **Remove** (in any other note).
 
 ## Saved encounters
 ```dm-list

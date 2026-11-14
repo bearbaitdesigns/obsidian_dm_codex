@@ -438,6 +438,11 @@ tags: [session]
 ## Strong start
 A [[Goblin Warrior|goblin]] ambush on the Thornwood road — the goblins were fleeing *something* and attacked out of panic.
 
+## Encounters
+*Add saved encounters or build new ones. New encounters are saved to the Encounters tab and linked to this session.*
+```session-encounters
+```
+
 ## Session log
 - Fight with 4 [[Goblin Warrior|goblin warriors]] — [[Kestrel]] knocked one [[Prone]] with a shove; [[Mira Thorne]] took one alive.
 - The captured goblin babbled about "grey hoods burning the forest".
@@ -486,17 +491,8 @@ tags: [session]
 Smoke rises from [[The Old Mill]] as the party approaches — someone is burning papers.
 
 ## Encounters
-```encounter
-title: Mill cellar
-monsters:
-  - Ashen Hand Zealot
-  - Cultist x3
-```
-
-```encounter
-title: Rats in the grain store
-monsters:
-  - Giant Rat x5
+*Add saved encounters or build new ones. New encounters are saved to the Encounters tab and linked to this session.*
+```session-encounters
 ```
 
 ## Session log
@@ -533,7 +529,10 @@ Smoke from the mill chimney — evidence being destroyed.
 - [ ] Brannoc's "rent" goes to the Hand.
 - [ ] Sister Cinder fears a coming plague.
 
-## 7. Monsters
+## 7. Monsters & encounters
+```session-encounters
+```
+
 ![[Ashen Hand Zealot]]
 
 ## 8. Rewards
@@ -603,6 +602,7 @@ difficulty: Moderate
 xp: 525
 location: "[[The Old Mill]]"
 session: "[[Session 002 - The Old Mill]]"
+prep: "[[Prep - Session 002]]"
 environment: ["urban"]
 tags: [encounter]
 ---
@@ -636,5 +636,67 @@ monsters:
 
 ## What happened
 - [ ] Used in a session
+''')
+w('Campaign/Encounters/Rats in the Grain Store.md', '''---
+type: encounter
+status: planned
+difficulty: Low
+xp: 125
+location: "[[The Old Mill]]"
+session: "[[Session 002 - The Old Mill]]"
+prep: "[[Prep - Session 002]]"
+environment: ["urban", "dungeon"]
+tags: [encounter]
+---
+# Rats in the Grain Store
+
+> [!read-aloud] Setup
+> The grain sacks are moving. Something has chewed through every one of them.
+
+```encounter
+title: "Rats in the Grain Store"
+monsters:
+  - "Giant Rat x5"
+```
+
+## Terrain & features
+- Rotten floorboards: a creature that ends its turn on them must succeed on a DC 10 Dexterity save or fall 10 feet into the millrace.
+
+## Tactics
+- The rats swarm the nearest light source and flee once three are down.
+
+## Treasure
+- A cultist's dropped pouch: 12 gp and a crude map of the cellar.
+
+## What happened
+- [ ] Used in a session
+''')
+w('Campaign/Encounters/Goblin Ambush on the Thornwood Road.md', '''---
+type: encounter
+status: used
+difficulty: Moderate
+xp: 200
+location: "[[Thornwood]]"
+session: "[[Session 001 - The Road to Briarford]]"
+prep: ""
+environment: ["forest"]
+tags: [encounter]
+---
+# Goblin Ambush on the Thornwood Road
+
+> [!read-aloud] Setup
+> Arrows hiss out of the undergrowth. The goblins look more frightened than you are.
+
+```encounter
+title: "Goblin Ambush on the Thornwood Road"
+monsters:
+  - "Goblin Warrior x4"
+```
+
+## Tactics
+- They were fleeing the Ashen Hand; they break and run as soon as two fall.
+
+## What happened
+- [x] Used in a session: Kestrel shoved one [[Prone]]; Mira took one alive.
 ''')
 print('world done')
