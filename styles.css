@@ -153,7 +153,7 @@ body .callout[data-callout="read-aloud"] .callout-content { font-style: italic; 
 .dmc-btn, .dmc-dashboard button, .dmc-block button, .dmc-modal button, .dmc-sq button,
 .dmc-dashboard select, .dmc-block select, .dmc-modal select { border-radius: 8px !important; }
 
-/* ---------- Builders (weapon, armor, gear, magic item, spell): same layout as the Monster/Villain builder ---------- */
+/* ---------- Builders (weapon, armor, gear, magic item, spell): same layout as the Creature builder ---------- */
 .modal.dmc-builder-modal { width: min(1100px, 96vw); max-width: 96vw; }
 .dmc-builder { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:16px; }
 .dmc-builder-form { max-height: 62vh; overflow:auto; padding-right:6px; }

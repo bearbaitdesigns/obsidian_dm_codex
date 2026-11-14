@@ -436,7 +436,7 @@ class DashboardView extends ItemView {
     else if (this.tab === 'monster' || this.tab === 'encounter') {
       const bar = body.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'margin-bottom:8px' } });
       const run = id => { if (!this.app.commands.executeCommandById(id)) new Notice('Enable the DM Statblocks plugin.'); };
-      if (this.tab === 'monster') { button(bar, 'Monster/Villain', 'skull', () => run('dm-statblocks:new-monster'), 'mod-cta'); button(bar, 'Random monster/villain', 'dices', () => run('dm-statblocks:random-monster')); }
+      if (this.tab === 'monster') { button(bar, 'Creature', 'skull', () => run('dm-statblocks:new-monster'), 'mod-cta'); button(bar, 'Random creature', 'dices', () => run('dm-statblocks:random-monster')); }
       else { button(bar, 'Build an encounter', 'swords', () => run('dm-statblocks:new-encounter'), 'mod-cta'); button(bar, 'Suggest a random encounter', 'sparkles', () => run('dm-statblocks:suggest-encounter')); button(bar, 'Initiative tracker', 'list-ordered', () => run('dm-statblocks:open-tracker')); }
       this.renderList(body, this.tab);
     }
@@ -469,9 +469,9 @@ class DashboardView extends ItemView {
         ['Faction', 'flag', create('faction'), 'New faction'],
         ['Quest', 'map', create('quest'), 'New quest'],
       ] },
-      { title: 'Monsters', icon: 'skull', items: [
-        ['Monster/Villain', 'skull', create('monster'), 'Monster/Villain builder (choose Kind in the form)'],
-        ['Random', 'dices', run('dm-statblocks:random-monster'), 'Random monster/villain for your party', 'dm-statblocks:random-monster'],
+      { title: 'Creatures & NPCs', icon: 'skull', items: [
+        ['Creature', 'skull', create('monster'), 'Creature builder: monster, villain or NPC with a statblock (choose Kind in the form)'],
+        ['Random', 'dices', run('dm-statblocks:random-monster'), 'Random creature for your party', 'dm-statblocks:random-monster'],
       ] },
       { title: 'Armory & magic', icon: 'sword', items: [
         ['Weapon', 'sword', create('weapon'), 'New weapon'],
@@ -639,8 +639,8 @@ class DashboardView extends ItemView {
     if (this.app.commands && this.app.commands.commands['dm-statblocks:new-monster']) {
       const cm = body.createDiv({ cls: 'dmc-card' }); cm.createEl('h4', { text: 'Monsters & villains' });
       const r = cm.createDiv({ cls: 'dmc-row dmc-wrap' });
-      button(r, 'Monster/Villain builder', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'), 'mod-cta');
-      button(r, 'Random monster/villain', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
+      button(r, 'Creature builder', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'), 'mod-cta');
+      button(r, 'Random creature', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
       cm.createDiv({ cls: 'dmc-muted', text: 'The builder captures a full 2024 statblock with a CR check; the random generator suggests a CR from your party\'s level and the difficulty you want.' });
     }
     const ca = body.createDiv({ cls: 'dmc-card' }); ca.createEl('h4', { text: 'Random armory' });
@@ -809,6 +809,13 @@ class DMCodexPlugin extends Plugin {
   }
   getAllTyped() {
     return this.app.vault.getMarkdownFiles().filter(f => TYPES[String(this.fm(f).type || '').toLowerCase()] && !f.path.startsWith(this.settings.templatesFolder + '/'));
+  }
+  /** 'done' (played / completed / done / finished …), 'cancelled' (cancelled / skipped) or 'upcoming'. */
+  sessionState(f) {
+    const raw = this.fm(f).status; const st = (Array.isArray(raw) ? raw.join(' ') : String(raw == null ? '' : raw)).toLowerCase();
+    if (/\b(played|complete|completed|done|finished|wrapped|ran|run|over|closed)\b|✅|✔/.test(st)) return 'done';
+    if (/\b(cancel+ed|skipped|scrapped|dropped)\b|❌/.test(st)) return 'cancelled';
+    return 'upcoming';
   }
   getSessionsSorted() {
     return this.getNotes('session').sort((a, b) => (Number(this.fm(a).session_number) || 0) - (Number(this.fm(b).session_number) || 0) || a.basename.localeCompare(b.basename));
@@ -1090,11 +1097,11 @@ class DMCodexPlugin extends Plugin {
       else if (k === 'tavern') button(row, 'Tavern', 'beer', () => new ShopModal(this, 'tavern').open());
       else if (k === 'shop') button(row, 'Shop', 'store', () => new ShopModal(this, 'potion').open());
       else if (k === 'tables') button(row, 'Random table', 'table', () => this.openTablePicker());
-      else if (k === 'builder') button(row, 'Monster/Villain', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'));
-      else if (k === 'villain') button(row, 'Monster/Villain', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-villain'));
+      else if (k === 'builder') button(row, 'Creature', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'));
+      else if (k === 'villain') button(row, 'Creature', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-villain'));
       else if (k === 'armorygen') button(row, 'Random loot', 'gem', () => new ArmoryGenModal(this).open());
       else if (k === 'spellgen') button(row, 'Random spell', 'wand-sparkles', () => new SpellGenModal(this).open());
-      else if (k === 'randommonster') button(row, 'Random monster/villain', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
+      else if (k === 'randommonster') button(row, 'Random creature', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
       else if (k === 'armory') button(row, 'Armory', 'sword', () => this.app.commands.executeCommandById('dm-codex:open-armory'));
       else if (k === 'give') button(row, 'Give to character', 'hand', () => { const f = this.app.workspace.getActiveFile(); if (f) this.giveItem(f); });
       else if (k === 'update') button(row, 'Update vault content', 'download', () => this.runContentUpdate());
@@ -2323,8 +2330,8 @@ Object.assign(DMCodexPlugin.prototype, {
   /** Facts worked out from the vault. */
   campaignFacts() {
     const sessions = this.getSessionsSorted();
-    const played = sessions.filter(f => String(this.fm(f).status).toLowerCase() === 'played');
-    const planned = sessions.filter(f => String(this.fm(f).status || 'planned').toLowerCase() !== 'played');
+    const played = sessions.filter(f => this.sessionState(f) === 'done');
+    const planned = sessions.filter(f => this.sessionState(f) === 'upcoming');
     const last = played[played.length - 1] || null;
     const next = planned[0] || null;
     const latest = sessions[sessions.length - 1] || null;
@@ -2593,7 +2600,7 @@ class LevelUpModal extends Modal {
     contentEl.createDiv({ cls: 'dmc-sec', text: 'When' });
     const g = contentEl.createDiv({ cls: 'dmc-lv-grid' });
     const sessions = p.getSessionsSorted().slice().reverse();
-    const played = sessions.find(s => String(p.fm(s).status).toLowerCase() === 'played');
+    const played = sessions.find(s => p.sessionState(s) === 'done');
     const def = this.opts.session || played || sessions[0] || null;
     const sSel = fEl(g, 'Session', sel([['', '— no session —'], ...sessions.map(s => [s.path, s.basename])], def ? def.path : ''));
     const dIn = fEl(g, 'Date', inp('date', ''));
