@@ -45,7 +45,7 @@ j('.obsidian/community-plugins.json', ["dm-codex", "dm-statblocks"])
 j('.obsidian/templates.json', {"folder": "Templates", "dateFormat": "YYYY-MM-DD"})
 j('.obsidian/types.json', {"types": {
     "session_number": "number", "level": "number", "ac": "number", "hp_max": "number", "init_bonus": "number",
-    "passive_perception": "number", "dndbeyond": "text", "date": "date", "created": "date", "players": "multitext", "npcs": "multitext",
+    "passive_perception": "number", "dndbeyond": "text", "image": "text", "gallery": "multitext", "date": "date", "created": "date", "players": "multitext", "npcs": "multitext",
     "locations": "multitext", "tags": "tags", "aliases": "aliases", "environment": "multitext"}})
 now = int(time.time() * 1000)
 j('.obsidian/bookmarks.json', {"items": [
@@ -130,6 +130,11 @@ compact: true
 | --- | --- |
 |  |  |
 
+## Level-ups
+```level-history
+session: this
+```
+
 ## Threads & follow-ups
 - [ ]
 
@@ -187,6 +192,7 @@ type: player
 character: "{{title}}"
 player: ""
 dndbeyond: ""
+image: ""
 species: ""
 class: ""
 subclass: ""
@@ -202,11 +208,19 @@ tags: [pc]
 ---
 # {{title}}
 
+```portrait
+```
+
 > [!npc]- At a glance
 > **Player:** · **Species/Class:** · **Background:**
 > **Languages:** · **Notable senses:**
 
 ```dndbeyond
+```
+
+## Level history
+*Click **Level up** after a session — the level, session and date are added here and `level` is updated.*
+```level-history
 ```
 
 ## Concept
@@ -251,9 +265,13 @@ faction: ""
 attitude: indifferent
 status: alive
 first_seen: ""
+image: ""
 tags: [npc]
 ---
 # {{title}}
+
+```portrait
+```
 
 > [!npc] Quick reference
 > **Look:**
@@ -301,6 +319,7 @@ type: place
 place_type: town
 region: ""
 parent: ""
+gallery: []
 tags: [place]
 ---
 # {{title}}
@@ -309,6 +328,11 @@ tags: [place]
 > *What do the characters see, hear and smell?*
 
 ## Overview
+
+## Gallery
+*Maps, sketches and mood images. Drop or paste images here; the first one is the cover.*
+```gallery
+```
 
 ## Points of interest
 ```dm-list
@@ -418,6 +442,7 @@ alignment: ""
 leader: ""
 base: ""
 attitude: neutral
+gallery: []
 tags: [faction]
 ---
 # {{title}}
@@ -427,6 +452,11 @@ tags: [faction]
 ## Methods
 
 ## Resources
+
+## Gallery
+*Banners, symbols, members, hideouts. Drop or paste images here.*
+```gallery
+```
 
 ## Threads
 *Session threads and follow-ups that link to this note.*
@@ -712,6 +742,9 @@ for k, v in T.items(): w(f'Templates/{k}.md', v)
 w('Home.md', '''---
 cssclasses: [dm-home]
 ---
+```dm-banner
+```
+
 # The Ashen Crown — DM Home
 
 ```dm-actions
@@ -788,6 +821,12 @@ empty: No villains yet — click Monster/Villain above and set Kind to Villain.
 filter: open
 limit: 8
 compact: true
+```
+
+## Level history
+```level-history
+party: true
+limit: 5
 ```
 
 ## Story arcs
@@ -900,6 +939,11 @@ title: Weather
 - **Threads & follow-ups** — every checklist item under *Threads & follow-ups* in your session notes is collected on the dashboard's **Threads** tab: filter **Open / Done / All**, search, tick items off (the tick is saved in the session note), or **Add thread** to a session. Open threads also appear on [[Home]], as a count on the campaign summary, and in a box at the top of each new session (*Open threads from earlier sessions*). Use a ` ```threads``` ` block anywhere (`filter: open|done|all`, `scope: earlier`, `limit: 8`).
 - **Notes & links on threads** — on the Threads tab (or any threads box), each thread has a **note** button to add a short note (saved as an indented bullet under the thread in the session) and a **link** button to connect it to an NPC, place, quest, faction or any other note. NPC, Place, Quest and Faction notes have a **Threads** section listing every thread that mentions them.
 - **D&D Beyond** — character notes and the Campaign Summary have a `dndbeyond` property and an **Add D&D Beyond link** button. Once set it becomes **Open on D&D Beyond**, and the link also appears on the Party tab, the Overview party card and the campaign summary card.
+- **Level-ups** — click **Level up** in a character note (or *Level up the party* on the Party tab, in a session's *Level-ups* section, or the command *DM Codex: Level up a character / the party*). Pick who, the new level, the session and what changed. Each character note gets a line under **Level history** — `- **Level 4** — [[Session 003]] · 2026-11-21 · Took the Alert feat` — and its `level` property is updated. The session note lists everyone who levelled up in it, and the Party tab and Home show the whole party's timeline. You can edit or delete the lines by hand.
+- **Banner** — the dashboard opens with a banner showing your campaign name. Hover it and click the pencil (or run *DM Codex: Edit dashboard banner*) to upload or pick your own image (drop or paste works too), change the campaign name, add an optional second line, and adjust the height, image position and text position. Put a ```` ```dm-banner``` ```` block in any note (Home has one) to show the same banner there.
+- **Art & portraits** — character and NPC notes have a **portrait** at the top: click *Upload*, pick one *From vault*, or just drop or paste an image onto it. It is saved to your attachments folder and stored in the `image` property, and shows as a small avatar in the dashboard lists and the Party card. Click a portrait to see it full size.
+- **Galleries** — place and faction notes have a **Gallery** section. Add several images at once (or drop / paste them), caption them with the pencil, and use the star to pick the cover (the first image, also used as the note's thumbnail). Removing an image from a gallery keeps the file. Images live in the `gallery` property, so renaming an image updates it.
+- **Monster & villain art / import** — in the Monster/Villain builder (DM Statblocks), the **Art** section adds an image that shows on the statblock. **Import from an image or text** reads a statblock from a screenshot or photo (OCR — downloads the free Tesseract engine the first time; turn it off in DM Statblocks settings) or from pasted text, then fills in the builder for you to check and save.
 - **Campaign summary** — the card at the top of the dashboard's **Overview** and **Ideas & Arcs** tabs shows the *Premise* and *Where things stand* sections of your **Campaign Summary** note, plus live facts: current arc, sessions played, last and next session, party, open quests, villains and planned encounters. Click a fact to jump to it; **Edit summary** opens the note.
 - **Story arcs** — the same bar has **Arc**: click **Set arc** to put a session (and its linked prep) in a story arc. New sessions inherit the previous session's arc, and a prep or session you create from its partner inherits it too. Each arc note lists **Sessions in this arc** and **Prep notes in this arc**.
 - **Encounters in sessions and prep** — every Session and Session Prep note has an **Encounters** panel. Click **Add existing** to link a saved encounter, **New encounter** to build one (it's saved to the Encounters tab and linked to the session or prep automatically), or **Suggest** to start from a suggestion. Each encounter in the panel can be **Run** in the tracker, marked **used**, **edited** or **unlinked** (unlinking keeps the encounter). For older session notes, run *DM Statblocks: Insert encounters panel*. **Delete** an encounter from the trash icon on the dashboard's Encounters tab, the **Delete encounter** button on the encounter itself (or in its editor), or *DM Statblocks: Delete an encounter*. It goes to the trash, so it can be recovered. An encounter block inside a session note has **Remove** instead, which deletes just that block.

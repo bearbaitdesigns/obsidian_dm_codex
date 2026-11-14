@@ -149,11 +149,11 @@ rename: Captain Vex
 
 # ---------------- Example campaign: The Ashen Crown ----------------
 P = [
- ('Mira Thorne', dict(player='Alex', species='Half-Elf? — use Human or Elf', cls='Rogue', sub='', bg='Criminal', lvl=3, ac=15, hp=21, ini=4, pp=14,
+ ('Mira Thorne', dict(player='Alex', species='Half-Elf? — use Human or Elf', cls='Rogue', sub='', bg='Criminal', lvl=3, ac=15, hp=21, ini=4, pp=14, lvlnote='Milestone: reached Briarford. Subclass: Thief',
    concept='A cutpurse trying to go straight, haunted by a debt to the Ashen Hand.', bond='Owes her life to [[Old Brannoc]].', hooks='Her brother [[Tobin Thorne]] vanished near [[The Old Mill]].')),
- ('Brother Halvard', dict(player='Sam', species='Dwarf', cls='Cleric', sub='Life Domain', bg='Acolyte', lvl=3, ac=18, hp=27, ini=0, pp=13,
+ ('Brother Halvard', dict(player='Sam', species='Dwarf', cls='Cleric', sub='Life Domain', bg='Acolyte', lvl=3, ac=18, hp=27, ini=0, pp=13, lvlnote='Milestone: reached Briarford. Level 2 spells: [[Lesser Restoration]], [[Spiritual Weapon]]',
    concept='A dwarven cleric sent to investigate the burnt shrine in [[Briarford]].', bond='Reports to [[Mother Wenna]].', hooks='His order once guarded a shard of the Ashen Crown.')),
- ('Kestrel', dict(player='Jordan', species='Goliath', cls='Fighter', sub='Champion', bg='Soldier', lvl=3, ac=16, hp=31, ini=2, pp=12,
+ ('Kestrel', dict(player='Jordan', species='Goliath', cls='Fighter', sub='Champion', bg='Soldier', lvl=3, ac=16, hp=31, ini=2, pp=12, lvlnote='Milestone: reached Briarford. Subclass: Champion',
    concept='A former caravan guard with a grudge against bandits.', bond='Her old caravan master drinks at [[The Drunken Owlbear]].', hooks='The bandits who ambushed her caravan wore ash-grey hoods.')),
 ]
 for name, d in P:
@@ -163,6 +163,7 @@ type: player
 character: "{name}"
 player: "{d['player']}"
 dndbeyond: ""
+image: ""
 species: {species}
 class: {d['cls']}
 subclass: "{d['sub']}"
@@ -177,11 +178,20 @@ tags: [pc]
 ---
 # {name}
 
+```portrait
+```
+
 > [!npc] At a glance
 > **Player:** {d['player']} · **{species} {d['cls']}** {d['lvl']} · **Background:** {d['bg']}
 
 ```dndbeyond
 ```
+
+## Level history
+```level-history
+```
+- **Level 2** — 2026-11-07 · Starting level
+- **Level 3** — [[Session 001 - The Road to Briarford]] · 2026-11-07 · {d['lvlnote']}
 
 ## Concept
 {d['concept']}
@@ -225,6 +235,7 @@ type: place
 place_type: {pt}
 region: "The Vale of Ash"
 parent: "{parent}"
+gallery: []
 tags: [place]
 ---
 # {name}
@@ -234,6 +245,10 @@ tags: [place]
 
 ## Overview
 {desc}
+
+## Gallery
+```gallery
+```
 
 ## Points of interest
 ```dm-list
@@ -310,9 +325,13 @@ faction: "{fac}"
 attitude: {att}
 status: alive
 first_seen: "[[Session 001 - The Road to Briarford]]"
+image: ""
 tags: [npc]
 ---
 # {name}
+
+```portrait
+```
 
 > [!npc] Quick reference
 > **Look:** {look}
@@ -379,6 +398,7 @@ alignment: Lawful Evil
 leader: "[[Sister Cinder]]"
 base: "[[The Old Mill]]"
 attitude: hostile
+gallery: []
 tags: [faction]
 ---
 # The Ashen Hand
@@ -388,6 +408,10 @@ Reassemble the **Ashen Crown**, a relic said to command fire and ash.
 
 ## Methods
 Protection rackets, recruiting the desperate, burning anything that guards a shard.
+
+## Gallery
+```gallery
+```
 
 ## Threads
 *Session threads and follow-ups that link to this note.*
@@ -519,6 +543,11 @@ A [[Goblin Warrior|goblin]] ambush on the Thornwood road — the goblins were fl
 | --- | --- |
 | 14 gp, 30 sp | party |
 | Goblin shortbow | Kestrel |
+
+## Level-ups
+```level-history
+session: this
+```
 
 ## Threads & follow-ups
 - [ ] Who is Brannoc paying? → [[Old Brannoc]]

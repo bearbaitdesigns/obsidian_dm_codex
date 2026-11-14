@@ -12,7 +12,7 @@ const {
 } = obsidian;
 
 /* Icon helper with fallbacks for older Obsidian versions whose bundled Lucide lacks newer names. */
-const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] };
+const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] , 'image-plus': ['image', 'plus'], 'upload': ['arrow-up', 'file-plus'], 'trending-up': ['arrow-up-right', 'arrow-up'], 'image': ['file'], 'rotate-ccw': ['refresh-ccw', 'undo']};
 function setIcon(el, name) {
   const tryOne = n => { try { if (el.empty) el.empty(); obsidian.setIcon(el, n); } catch (e) { return false; } return !!(el.querySelector && el.querySelector('svg')); };
   if (tryOne(name)) return;
@@ -62,6 +62,7 @@ const DEFAULT_SETTINGS = {
   openNewNote: true,
   folders: Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, v.folder])),
   dashboardTab: 'overview',
+  banner: { show: true, image: '', subtitle: '', height: 200, focus: 35, align: 'center' },
   contentVersion: null,
   managed: {},
 };
@@ -404,9 +405,14 @@ class DashboardView extends ItemView {
   }
   render() {
     const el = this.contentEl; el.empty(); el.addClass('dmc-dashboard');
-    const header = el.createDiv({ cls: 'dmc-header' });
-    header.createEl('h2', { text: this.plugin.settings.campaignName });
-    header.createDiv({ cls: 'dmc-muted', text: 'DM Codex · ' + today() });
+    const bs = this.plugin.bannerSettings();
+    if (bs.show !== false) this.plugin.drawBanner(el);
+    else {
+      const header = el.createDiv({ cls: 'dmc-header' });
+      header.createEl('h2', { text: this.plugin.settings.campaignName });
+      header.createDiv({ cls: 'dmc-muted', text: 'DM Codex · ' + today() });
+      const eb = button(header, 'Banner', 'image', () => new BannerModal(this.plugin).open(), 'dmc-icon-btn dmc-banner-add'); eb.setAttr('title', 'Add a banner');
+    }
     const tabs = el.createDiv({ cls: 'dmc-tabs' });
     for (const [key, label, icon] of TABS) {
       const t = button(tabs, label, icon, () => { this.tab = key; this.filter = ''; this.plugin.settings.dashboardTab = key; this.plugin.saveSettings(); this.render(); }, 'dmc-tab' + (this.tab === key ? ' is-active' : ''));
@@ -434,6 +440,7 @@ class DashboardView extends ItemView {
       else { button(bar, 'Build an encounter', 'swords', () => run('dm-statblocks:new-encounter'), 'mod-cta'); button(bar, 'Suggest a random encounter', 'sparkles', () => run('dm-statblocks:suggest-encounter')); button(bar, 'Initiative tracker', 'list-ordered', () => run('dm-statblocks:open-tracker')); }
       this.renderList(body, this.tab);
     }
+    else if (this.tab === 'player') { this.renderList(body, 'player'); this.plugin.renderLevelCard(body); }
     else this.renderList(body, this.tab);
   }
   link(parent, file, text) {
@@ -545,12 +552,13 @@ class DashboardView extends ItemView {
       this.link(r, f); r.createSpan({ cls: 'dmc-pill', text: fm.status || '' }); r.createSpan({ cls: 'dmc-muted', text: ' ' + (fm.date || '') });
     });
     // Party
-    const c2 = grid.createDiv({ cls: 'dmc-card' }); c2.createEl('h4', { text: 'Party' });
+    const c2 = grid.createDiv({ cls: 'dmc-card' }); const c2h = c2.createDiv({ cls: 'dmc-card-head' }); c2h.createEl('h4', { text: 'Party' });
+    { const b = button(c2h, 'Level up', 'trending-up', () => p.openLevelUp({}), 'dmc-icon-btn dmc-small'); b.setAttr('title', 'Record a level-up for the party'); }
     const party = p.getNotes('player').filter(f => (p.fm(f).status || 'active') === 'active');
     if (!party.length) c2.createDiv({ cls: 'dmc-muted', text: 'No player characters yet.' });
     party.forEach(f => {
       const fm = p.fm(f); const r = c2.createDiv({ cls: 'dmc-line' });
-      this.link(r, f);
+      p.avatar(r, f); this.link(r, f);
       r.createSpan({ cls: 'dmc-muted', text: ' — ' + [fm.species, fm.class, fm.level ? 'Lv ' + fm.level : ''].filter(Boolean).join(' ') });
       r.createSpan({ cls: 'dmc-pill', text: 'AC ' + (fm.ac ?? '?') }); r.createSpan({ cls: 'dmc-pill', text: 'PP ' + (fm.passive_perception ?? '?') });
       if (fm.dndbeyond && /^https?:\/\//i.test(String(fm.dndbeyond).trim())) { const a = r.createEl('a', { cls: 'external-link dmc-ddb-mini', text: 'DDB ↗' }); a.setAttr('href', String(fm.dndbeyond).trim()); a.setAttr('target', '_blank'); a.setAttr('title', 'Open on D&D Beyond'); }
@@ -600,7 +608,7 @@ class DashboardView extends ItemView {
       const tb = t.createEl('tbody');
       files.forEach(f => {
         const fm = p.fm(f); const r = tb.createEl('tr');
-        this.link(r.createEl('td'), f);
+        { const td = r.createEl('td'); if (['player', 'npc', 'monster', 'place', 'faction'].includes(type)) { td.addClass('dmc-name-cell'); p.avatar(td, f); } this.link(td, f); }
         cols.forEach(c => {
           const td = r.createEl('td'); const v = fm[c];
           const links = typeof v === 'string' || Array.isArray(v) ? (JSON.stringify(v).includes('[[') ? extractLinks(v) : []) : [];
@@ -659,7 +667,8 @@ class DMCodexSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this; containerEl.empty();
     const s = this.plugin.settings;
-    new Setting(containerEl).setName('Campaign name').addText(t => t.setValue(s.campaignName).onChange(async v => { s.campaignName = v; await this.plugin.saveSettings(); }));
+    new Setting(containerEl).setName('Campaign name').addText(t => t.setValue(s.campaignName).onChange(async v => { s.campaignName = v; await this.plugin.saveSettings(); this.plugin.refreshBanners(); }));
+    new Setting(containerEl).setName('Dashboard banner').setDesc('Image, campaign name and an optional second line at the top of the dashboard (and in ```dm-banner``` blocks).').addButton(b => b.setButtonText('Edit banner…').onClick(() => new BannerModal(this.plugin).open()));
     new Setting(containerEl).setName('Templates folder').setDesc('Notes are created from "<folder>/<Type>.md" if it exists (e.g. Templates/NPC.md). Variables: {{title}}, {{date}}, {{number}}, {{prev}}, {{campaign}}, {{link}}.')
       .addText(t => t.setValue(s.templatesFolder).onChange(async v => { s.templatesFolder = v; await this.plugin.saveSettings(); }));
     new Setting(containerEl).setName('Side quest tables note').setDesc('Extra entries for the generator. Use "## giver", "## hook", "## objective", "## location", "## complication", "## twist", "## reward", "## urgency" headings with "- " list items.')
@@ -718,6 +727,14 @@ class DMCodexPlugin extends Plugin {
       child.registerEvent(this.app.metadataCache.on('changed', x => { if (x.path === f.path) draw(); }));
       draw();
     });
+    this.registerMarkdownCodeBlockProcessor('dm-banner', (src, el, ctx) => this.renderBannerBlock(src, el, ctx));
+    this.addCommand({ id: 'edit-banner', name: 'Edit dashboard banner (image, campaign name, second line)', callback: () => new BannerModal(this).open() });
+    this.registerMarkdownCodeBlockProcessor('portrait', (src, el, ctx) => this.renderPortrait(src, el, ctx));
+    this.registerMarkdownCodeBlockProcessor('gallery', (src, el, ctx) => this.renderGallery(src, el, ctx));
+    this.addCommand({ id: 'set-portrait', name: 'Set portrait / art for this note…', callback: () => { const f = this.app.workspace.getActiveFile(); if (!f) return; new ImageSuggestModal(this.app, img => this.setPortrait(f, img), 'Choose a portrait for ' + f.basename + '…').open(); } });
+    this.addCommand({ id: 'add-to-gallery', name: 'Add images to this note\'s gallery…', callback: async () => { const f = this.app.workspace.getActiveFile(); if (!f) return; const fs = await chooseImageFiles(true); if (fs.length) await this.addToGallery(f, await this.saveImagesFor(f, fs)); } });
+    this.registerMarkdownCodeBlockProcessor('level-history', (src, el, ctx) => this.renderLevelBlock(src, el, ctx));
+    this.addCommand({ id: 'level-up', name: 'Level up a character / the party…', callback: () => { const f = this.app.workspace.getActiveFile(); const t = f && this.fm(f).type; this.openLevelUp(t === 'player' ? { chars: [f] } : t === 'session' ? { session: f } : {}); } });
     this.registerMarkdownCodeBlockProcessor('session-link', (src, el, ctx) => this.renderSessionLink(src, el, ctx));
     this.addCommand({ id: 'linked-prep-session', name: 'Create linked prep (from a session) or session (from a prep)', callback: () => {
       const f = this.app.workspace.getActiveFile(); const t = f && this.fm(f).type;
@@ -771,6 +788,7 @@ class DMCodexPlugin extends Plugin {
     if (!data) { data = (await this.readBackup()) || {}; if (Object.keys(data).length) new Notice('DM Codex: settings restored from backup.'); }
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     this.settings.folders = Object.assign({}, DEFAULT_SETTINGS.folders, data.folders || {});
+    this.settings.banner = Object.assign({}, DEFAULT_SETTINGS.banner, data.banner || {});
   }
   async saveSettings() { await this.saveData(this.settings); await this.writeBackup(this.settings); }
   backupPath() { return this.app.vault.configDir + '/dm-vault-' + this.manifest.id + '-settings-backup.json'; }
@@ -2533,6 +2551,498 @@ Object.assign(DMCodexPlugin.prototype, {
     };
     draw();
     return draw;
+  },
+});
+
+/* ================================================================== */
+/* Level-up tracking                                                   */
+/* ================================================================== */
+/*
+ * Each character note keeps a "## Level history" list (real links, so backlinks work):
+ *   - **Level 4** — [[Session 003 - …]] · 2026-11-14 · Took the Alert feat
+ * ```level-history``` shows the current level and a Level up button in a character note,
+ * the level-ups from this session in a session note (`session: this`), or the whole party timeline (`party: true`).
+ */
+const LEVEL_HEADING = /^#{1,6}\s+level (history|ups?|progression)\b/i;
+const LEVEL_LINE = /^\s*[-*]\s+\*\*Level\s+(\d+)\*\*\s*(?:[—–-]\s*)?(.*)$/i;
+
+class LevelUpModal extends Modal {
+  constructor(plugin, opts = {}) { super(plugin.app); this.plugin = plugin; this.opts = opts; }
+  onOpen() {
+    const p = this.plugin, { contentEl } = this;
+    contentEl.addClass('dmc-modal', 'dmc-levelup');
+    const h = contentEl.createEl('h3'); setIcon(h.createSpan({ cls: 'dmc-btn-icon' }), 'trending-up'); h.appendText(' Level up');
+    const party = p.getNotes('player').filter(f => (p.fm(f).status || 'active') === 'active').sort((a, b) => a.basename.localeCompare(b.basename));
+    const pre = (this.opts.chars || []).map(f => f.path);
+    const sec1 = contentEl; contentEl.createDiv({ cls: 'dmc-sec', text: 'Who levels up?' });
+    const rows = [];
+    const list = sec1.createDiv({ cls: 'dmc-lv-list' });
+    const all = (this.opts.chars && this.opts.chars.length === 1 && !party.find(f => f.path === pre[0])) ? this.opts.chars : party;
+    if (!all.length) list.createDiv({ cls: 'dmc-muted', text: 'No active player characters yet.' });
+    all.forEach(f => {
+      const cur = Number(p.fm(f).level) || 1;
+      const r = list.createDiv({ cls: 'dmc-lv-row' });
+      const cb = r.createEl('input', { type: 'checkbox' }); cb.checked = pre.length ? pre.includes(f.path) : true;
+      r.createSpan({ cls: 'dmc-lv-name', text: f.basename });
+      r.createSpan({ cls: 'dmc-muted', text: [p.fm(f).class, 'Lv ' + cur].filter(Boolean).join(' · ') });
+      r.createSpan({ cls: 'dmc-muted', text: '→' });
+      const n = r.createEl('input', { type: 'number', cls: 'dmc-lv-num', attr: { min: '1', max: '20' } }); n.value = String(Math.min(20, cur + 1));
+      const sync = () => { n.disabled = !cb.checked; r.toggleClass('is-off', !cb.checked); }; cb.addEventListener('change', sync); sync();
+      rows.push({ f, cb, n });
+    });
+    contentEl.createDiv({ cls: 'dmc-sec', text: 'When' });
+    const g = contentEl.createDiv({ cls: 'dmc-lv-grid' });
+    const sessions = p.getSessionsSorted().slice().reverse();
+    const played = sessions.find(s => String(p.fm(s).status).toLowerCase() === 'played');
+    const def = this.opts.session || played || sessions[0] || null;
+    const sSel = fEl(g, 'Session', sel([['', '— no session —'], ...sessions.map(s => [s.path, s.basename])], def ? def.path : ''));
+    const dIn = fEl(g, 'Date', inp('date', ''));
+    const setDate = () => { const s = sessions.find(x => x.path === sSel.value); const d = s && p.fm(s).date; dIn.value = d && /^\d{4}-\d{2}-\d{2}/.test(String(d)) ? String(d).slice(0, 10) : today(); };
+    sSel.addEventListener('change', setDate); setDate();
+    const note = fEl(g, 'What changed (optional)', ta('', 'Milestone, HP gained, new feat or subclass, spells learned… [[links]] work', 2), true);
+    const row = contentEl.createDiv({ cls: 'dmc-row' });
+    button(row, 'Level up', 'trending-up', async () => {
+      const chosen = rows.filter(r => r.cb.checked);
+      if (!chosen.length) { new Notice('Pick at least one character.'); return; }
+      const session = sessions.find(x => x.path === sSel.value) || null;
+      for (const r of chosen) await p.recordLevelUp(r.f, { level: Math.max(1, Math.min(20, Number(r.n.value) || 1)), session, date: dIn.value, note: note.value.replace(/\s*\n\s*/g, ' ').trim() });
+      new Notice(chosen.length === 1 ? '⬆ ' + chosen[0].f.basename + ' is now level ' + chosen[0].n.value : '⬆ ' + chosen.length + ' characters levelled up');
+      this.close(); this.opts.onDone?.();
+    }, 'mod-cta');
+    button(row, 'Cancel', null, () => this.close());
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
+Object.assign(DMCodexPlugin.prototype, {
+  openLevelUp(opts) { new LevelUpModal(this, opts || {}).open(); },
+  /** Parse "## Level history" entries of a character note (oldest first). */
+  parseLevelHistory(file, text) {
+    const lines = text.split('\n'); const out = [];
+    let inSec = false, depth = 0;
+    for (const line of lines) {
+      const hm = /^(#{1,6})\s/.exec(line);
+      if (hm) { if (LEVEL_HEADING.test(line)) { inSec = true; depth = hm[1].length; continue; } if (inSec && hm[1].length <= depth) inSec = false; }
+      if (!inSec) continue;
+      const m = LEVEL_LINE.exec(line); if (!m) continue;
+      const e = { file, level: Number(m[1]), session: null, sessionText: '', date: '', note: '', line };
+      const notes = [];
+      for (const part of m[2].split(/\s+·\s+/).map(s => s.trim()).filter(Boolean)) {
+        const lk = /^\[\[([^\]|#]+)(?:[^\]]*)\]\]$/.exec(part);
+        const dest = lk && this.app.metadataCache.getFirstLinkpathDest(lk[1], file.path);
+        if (!e.session && dest && this.fm(dest).type === 'session') { e.session = dest; e.sessionText = part; }
+        else if (!e.date && /^\d{4}-\d{2}-\d{2}$/.test(part)) e.date = part;
+        else notes.push(part);
+      }
+      e.note = notes.join(' · ');
+      out.push(e);
+    }
+    return out;
+  },
+  async levelHistory(file) { return this.parseLevelHistory(file, await this.app.vault.cachedRead(file)); },
+  async partyLevelHistory() {
+    const chars = this.getNotes('player');
+    const all = [];
+    for (const f of chars) all.push(...await this.levelHistory(f));
+    return all;
+  },
+  /** Add a line to the character's Level history (creating the section if needed) and set `level`. */
+  async recordLevelUp(file, { level, session, date, note }) {
+    const parts = ['- **Level ' + level + '**'];
+    const rest = [session ? '[[' + session.basename + ']]' : '', date || '', note || ''].filter(Boolean);
+    const line = parts[0] + (rest.length ? ' — ' + rest.join(' · ') : '');
+    await this.app.vault.process(file, text => {
+      const lines = text.split('\n');
+      let h = lines.findIndex(l => LEVEL_HEADING.test(l));
+      if (h < 0) {
+        let at = lines.findIndex(l => /^#{1,6}\s+sessions featuring/i.test(l));
+        const block = ['## Level history', '```level-history', '```', line, ''];
+        if (at < 0) { while (lines.length && !lines[lines.length - 1].trim()) lines.pop(); lines.push('', ...block); }
+        else lines.splice(at, 0, ...block);
+        return lines.join('\n');
+      }
+      const depth = /^(#+)/.exec(lines[h])[1].length;
+      let end = lines.length;
+      for (let i = h + 1; i < lines.length; i++) { const m = /^(#{1,6})\s/.exec(lines[i]); if (m && m[1].length <= depth) { end = i; break; } }
+      // drop empty "- " placeholders in the section
+      for (let i = end - 1; i > h; i--) if (/^\s*[-*]\s*$/.test(lines[i])) { lines.splice(i, 1); end--; }
+      let last = h; for (let i = h + 1; i < end; i++) if (lines[i].trim()) last = i;
+      lines.splice(last + 1, 0, line);
+      if (last + 2 < lines.length && lines[last + 2].trim() && /^#/.test(lines[last + 2])) lines.splice(last + 2, 0, '');
+      return lines.join('\n');
+    });
+    const cur = Number(this.fm(file).level) || 0;
+    if (level >= cur) await this.app.fileManager.processFrontMatter(file, fm => { fm.level = level; });
+  },
+  async removeLevelEntry(e) {
+    await this.app.vault.process(e.file, text => { const lines = text.split('\n'); const i = lines.indexOf(e.line); if (i >= 0) lines.splice(i, 1); return lines.join('\n'); });
+    const left = await this.levelHistory(e.file);
+    if (left.length) await this.app.fileManager.processFrontMatter(e.file, fm => { fm.level = Math.max(...left.map(x => x.level)); });
+  },
+  linkTo(parent, file, text) {
+    const a = parent.createEl('a', { cls: 'internal-link', text: text || file.basename, href: file.path });
+    a.addEventListener('click', ev => { ev.preventDefault(); this.app.workspace.openLinkText(file.path, '', Keymap.isModEvent(ev)); });
+    return a;
+  },
+  /** Party timeline grouped by session, newest first. */
+  renderLevelTimeline(el, entries, opts = {}) {
+    if (!entries.length) { el.createDiv({ cls: 'dmc-muted', text: opts.empty || 'No level-ups recorded yet. Use Level up after a session — it is added to each character\'s Level history.' }); return; }
+    const order = new Map(this.getSessionsSorted().map((s, i) => [s.path, i]));
+    const groups = new Map();
+    for (const e of entries) { const k = e.session ? e.session.path : 'date:' + (e.date || ''); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); }
+    const keyRank = k => k.startsWith('date:') ? -1 : order.get(k) ?? -1;
+    const keys = [...groups.keys()].sort((a, b) => keyRank(b) - keyRank(a) || String(groups.get(b)[0].date).localeCompare(String(groups.get(a)[0].date)));
+    const t = el.createEl('table', { cls: 'dmc-table dmc-lv-table' });
+    const hr = t.createEl('thead').createEl('tr'); ['Session', 'Date', 'Level-ups'].forEach(x => hr.createEl('th', { text: x }));
+    const tb = t.createEl('tbody');
+    for (const k of keys.slice(0, opts.limit || keys.length)) {
+      const g = groups.get(k); const r = tb.createEl('tr');
+      const s = r.createEl('td'); if (g[0].session) this.linkTo(s, g[0].session); else s.createSpan({ cls: 'dmc-muted', text: '—' });
+      r.createEl('td', { text: g.map(e => e.date).find(Boolean) || '' });
+      const c = r.createEl('td');
+      g.sort((a, b) => a.file.basename.localeCompare(b.file.basename)).forEach(e => {
+        const chip = c.createDiv({ cls: 'dmc-lv-chip' });
+        this.linkTo(chip, e.file); chip.createSpan({ cls: 'dmc-pill', text: 'Lv ' + e.level });
+        if (e.note) chip.createSpan({ cls: 'dmc-muted', text: ' ' + e.note.replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g, (_, a, b) => b || a) });
+      });
+    }
+  },
+  /** ```level-history``` code block. */
+  renderLevelBlock(src, el, ctx) {
+    el.addClass('dmc-block', 'dmc-lv-block'); lpSafe(el);
+    let o = {}; try { o = parseYaml(src) || {}; } catch (e) {}
+    const host = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+    const type = host instanceof TFile ? this.fm(host).type : '';
+    const mode = o.party === true || o.party === 'true' ? 'party' : (o.session === 'this' || type === 'session') ? 'session' : type === 'player' ? 'char' : 'party';
+    const draw = async () => {
+      el.empty();
+      if (mode === 'char') {
+        const hist = await this.levelHistory(host);
+        const cur = Number(this.fm(host).level) || 1;
+        const top = el.createDiv({ cls: 'dmc-lv-head' });
+        const badge = top.createDiv({ cls: 'dmc-lv-badge' }); badge.createDiv({ cls: 'dmc-lv-badge-num', text: String(cur) }); badge.createDiv({ cls: 'dmc-lv-badge-lbl', text: 'Level' });
+        const info = top.createDiv({ cls: 'dmc-lv-info' });
+        if (!hist.length) info.createDiv({ cls: 'dmc-muted', text: 'No level-ups recorded yet.' });
+        else {
+          const last = hist[hist.length - 1];
+          const l1 = info.createDiv(); l1.appendText(hist.length + ' level-up' + (hist.length === 1 ? '' : 's') + ' recorded · last: Level ' + last.level + ' ');
+          if (last.session) { l1.appendText('in '); this.linkTo(l1, last.session); }
+          if (last.date) l1.createSpan({ cls: 'dmc-muted', text: ' (' + last.date + ')' });
+          const ps = hist.filter(e => e.session).length;
+          if (ps) { const sess = this.getSessionsSorted(); const first = hist.find(e => e.session); const i0 = sess.findIndex(s => s.path === first.session.path); const i1 = sess.findIndex(s => s.path === last.session?.path); if (i0 >= 0 && i1 > i0 && hist.length > 1) info.createDiv({ cls: 'dmc-muted', text: 'About ' + Math.round((i1 - i0) / (hist.length - 1) * 10) / 10 + ' sessions per level' }); }
+        }
+        const acts = top.createDiv({ cls: 'dmc-lv-acts' });
+        button(acts, 'Level up', 'trending-up', () => this.openLevelUp({ chars: [host] }), 'mod-cta');
+      } else if (mode === 'session') {
+        const all = (await this.partyLevelHistory()).filter(e => e.session && e.session.path === host.path);
+        const top = el.createDiv({ cls: 'dmc-lv-head' });
+        const info = top.createDiv({ cls: 'dmc-lv-info' });
+        if (!all.length) info.createDiv({ cls: 'dmc-muted', text: 'No level-ups recorded for this session.' });
+        else all.sort((a, b) => a.file.basename.localeCompare(b.file.basename)).forEach(e => { const c = info.createDiv({ cls: 'dmc-lv-chip' }); setIcon(c.createSpan({ cls: 'dmc-btn-icon' }), 'trending-up'); this.linkTo(c, e.file); c.appendText(' reached '); c.createSpan({ cls: 'dmc-pill', text: 'Level ' + e.level }); if (e.note) c.createSpan({ cls: 'dmc-muted', text: ' ' + e.note.replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g, (_, a, b) => b || a) }); });
+        const acts = top.createDiv({ cls: 'dmc-lv-acts' });
+        button(acts, all.length ? 'Level up more' : 'Level up the party', 'trending-up', () => this.openLevelUp({ session: host }));
+      } else {
+        const bar = el.createDiv({ cls: 'dmc-row', attr: { style: 'justify-content:flex-end;margin-bottom:6px' } });
+        button(bar, 'Level up the party', 'trending-up', () => this.openLevelUp({}));
+        this.renderLevelTimeline(el, await this.partyLevelHistory(), { limit: Number(o.limit) || 0 });
+      }
+    };
+    if (ctx.addChild) {
+      const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+      const refresh = obsidian.debounce ? obsidian.debounce(() => draw(), 250, true) : draw;
+      child.registerEvent(this.app.metadataCache.on('changed', f => { if (this.fm(f).type === 'player') refresh(); }));
+    }
+    draw();
+  },
+  /** Dashboard card (Party tab). */
+  renderLevelCard(body) {
+    const c = body.createDiv({ cls: 'dmc-card' });
+    const head = c.createDiv({ cls: 'dmc-card-head' });
+    const h = head.createEl('h4'); setIcon(h.createSpan({ cls: 'dmc-btn-icon' }), 'trending-up'); h.appendText(' Level history');
+    button(head, 'Level up the party', 'trending-up', () => this.openLevelUp({}), 'mod-cta');
+    const party = this.getNotes('player').filter(f => (this.fm(f).status || 'active') === 'active');
+    if (party.length) {
+      const lv = party.map(f => Number(this.fm(f).level) || 1);
+      c.createDiv({ cls: 'dmc-muted', attr: { style: 'margin-bottom:6px' }, text: 'Party level ' + (Math.min(...lv) === Math.max(...lv) ? lv[0] : Math.min(...lv) + '–' + Math.max(...lv)) + ' · each character keeps its own Level history; this is the whole party, newest first.' });
+    }
+    const wrap = c.createDiv();
+    this.partyLevelHistory().then(es => this.renderLevelTimeline(wrap, es));
+  },
+});
+
+/* ================================================================== */
+/* Images: art, portraits, galleries (shared by DM Codex & DM Statblocks) */
+/* ================================================================== */
+const IMG_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg', 'avif'];
+const IMG_MIME_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp', 'image/bmp': 'bmp', 'image/svg+xml': 'svg', 'image/avif': 'avif' };
+function isImageFile(f) { return !!(f && f.extension && IMG_EXT.includes(String(f.extension).toLowerCase())); }
+function imageFilesIn(app) { return app.vault.getFiles().filter(isImageFile).sort((a, b) => ((b.stat && b.stat.mtime) || 0) - ((a.stat && a.stat.mtime) || 0)); }
+/** "[[art.png|caption]]", "art.png", "![[art.png]]" or a URL → { file?, url, name, caption } */
+function resolveImage(app, v, sourcePath) {
+  const s = String(v == null ? '' : v).trim(); if (!s) return null;
+  if (/^(https?:|data:image|app:|blob:)/i.test(s)) return { url: s, name: s.split('/').pop(), caption: '' };
+  let m = /^!?\[\[([^\]|#]+)(?:\|([^\]]*))?\]\]$/.exec(s);
+  if (!m) { const md = /^!?\[([^\]]*)\]\(([^)]+)\)$/.exec(s); if (md) { if (/^https?:/i.test(md[2])) return { url: md[2], name: md[2].split('/').pop(), caption: md[1] }; m = [null, decodeURI(md[2]), md[1]]; } }
+  const link = m ? m[1] : s.replace(/^!/, '');
+  const f = app.metadataCache.getFirstLinkpathDest(link.trim(), sourcePath || '');
+  return f && isImageFile(f) ? { file: f, url: app.vault.getResourcePath(f), name: f.basename, caption: (m && m[2]) || '' } : null;
+}
+function imageLinkFor(app, f, sourcePath, caption) {
+  const t = app.metadataCache.fileToLinktext ? app.metadataCache.fileToLinktext(f, sourcePath || '', false) : f.name;
+  return '[[' + t + (caption ? '|' + String(caption).replace(/[\[\]|]/g, '') : '') + ']]';
+}
+/** Copy an image (File/Blob) into the vault, following the user's attachment settings. */
+async function saveImageToVault(app, blob, name, sourcePath) {
+  let ext = (String(name || '').match(/\.([a-z0-9]+)$/i) || [])[1] || IMG_MIME_EXT[blob.type] || 'png';
+  let base = String(name || 'image').replace(/\.[^.]+$/, '').replace(/[\\/:*?"<>|#^\[\]]/g, '').trim() || 'image';
+  if (/^image$|^Pasted image$/i.test(base)) base = 'Pasted image ' + new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  const fname = base + '.' + ext.toLowerCase();
+  let path;
+  if (app.fileManager.getAvailablePathForAttachment) path = await app.fileManager.getAvailablePathForAttachment(fname, sourcePath || '');
+  else { path = 'Assets/' + fname; let i = 1; while (app.vault.getAbstractFileByPath(path)) path = 'Assets/' + base + ' ' + (i++) + '.' + ext; }
+  const dir = path.split('/').slice(0, -1).join('/');
+  if (dir && !app.vault.getAbstractFileByPath(dir)) { try { await app.vault.createFolder(dir); } catch (e) {} }
+  return app.vault.createBinary(path, await blob.arrayBuffer());
+}
+/** Open the system file picker for images. */
+function chooseImageFiles(multiple) {
+  return new Promise(resolve => {
+    const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.multiple = !!multiple; i.style.display = 'none';
+    i.addEventListener('change', () => { resolve(Array.from(i.files || [])); i.remove(); });
+    document.body.appendChild(i); i.click();
+  });
+}
+function imagesFromDataTransfer(dt) {
+  const out = [];
+  if (!dt) return out;
+  for (const f of Array.from(dt.files || [])) if (/^image\//.test(f.type)) out.push(f);
+  if (!out.length) for (const it of Array.from(dt.items || [])) if (it.kind === 'file' && /^image\//.test(it.type)) { const f = it.getAsFile(); if (f) out.push(f); }
+  return out;
+}
+/** Make an element accept dropped / pasted images. */
+function makeImageDropTarget(el, onFiles, hoverCls) {
+  el.setAttr ? el.setAttr('tabindex', '0') : el.setAttribute('tabindex', '0');
+  const cls = hoverCls || 'is-dragover';
+  el.addEventListener('dragover', e => { if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); el.classList.add(cls); } });
+  el.addEventListener('dragleave', () => el.classList.remove(cls));
+  el.addEventListener('drop', e => { const fs = imagesFromDataTransfer(e.dataTransfer); el.classList.remove(cls); if (fs.length) { e.preventDefault(); e.stopPropagation(); onFiles(fs); } });
+  el.addEventListener('paste', e => { const fs = imagesFromDataTransfer(e.clipboardData); if (fs.length) { e.preventDefault(); e.stopPropagation(); onFiles(fs); } });
+  return el;
+}
+class ImageSuggestModal extends FuzzySuggestModal {
+  constructor(app, onChoose, placeholder) { super(app); this.onChoose = onChoose; this.setPlaceholder(placeholder || 'Choose an image from the vault…'); }
+  getItems() { return imageFilesIn(this.app); }
+  getItemText(f) { return f.path; }
+  renderSuggestion(m, el) {
+    const f = m.item || m; el.addClass('img-suggest');
+    const img = el.createEl('img', { cls: 'img-suggest-thumb' }); img.src = this.app.vault.getResourcePath(f);
+    const t = el.createDiv(); t.createDiv({ text: f.name }); t.createDiv({ cls: 'img-suggest-path', text: f.parent && f.parent.path && f.parent.path !== '/' ? f.parent.path : '' });
+  }
+  onChooseItem(f) { this.onChoose(f); }
+}
+/** Full-size viewer with previous / next. items: [{ url, caption, file }] */
+class ImageLightbox extends Modal {
+  constructor(app, items, index, opts) { super(app); this.items = items; this.i = index || 0; this.opts = opts || {}; }
+  onOpen() {
+    this.modalEl.addClass('img-lightbox-modal');
+    const c = this.contentEl; c.addClass('img-lightbox');
+    const stage = c.createDiv({ cls: 'img-lightbox-stage' });
+    const img = stage.createEl('img');
+    const cap = c.createDiv({ cls: 'img-lightbox-cap' });
+    const nav = (d) => { this.i = (this.i + d + this.items.length) % this.items.length; draw(); };
+    let prev, next;
+    if (this.items.length > 1) {
+      prev = stage.createEl('button', { cls: 'img-lightbox-nav is-prev', text: '‹', attr: { 'aria-label': 'Previous' } }); prev.addEventListener('click', () => nav(-1));
+      next = stage.createEl('button', { cls: 'img-lightbox-nav is-next', text: '›', attr: { 'aria-label': 'Next' } }); next.addEventListener('click', () => nav(1));
+      this.scope && this.scope.register && (this.scope.register([], 'ArrowLeft', () => { nav(-1); return false; }), this.scope.register([], 'ArrowRight', () => { nav(1); return false; }));
+    }
+    const draw = () => {
+      const it = this.items[this.i]; img.src = it.url; img.alt = it.caption || it.name || '';
+      cap.empty();
+      cap.createSpan({ text: it.caption || it.name || '' });
+      if (this.items.length > 1) cap.createSpan({ cls: 'img-lightbox-count', text: ' · ' + (this.i + 1) + ' / ' + this.items.length });
+      if (it.file) { const a = cap.createEl('a', { cls: 'img-lightbox-open', text: 'Open file' }); a.addEventListener('click', e => { e.preventDefault(); this.close(); this.app.workspace.getLeaf('tab').openFile(it.file); }); }
+    };
+    draw();
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
+/* ================================================================== */
+/* Portraits (characters, NPCs) and galleries (places, factions)       */
+/* ================================================================== */
+Object.assign(DMCodexPlugin.prototype, {
+  /** First portrait / gallery image of a note, for thumbnails. */
+  thumbFor(file) {
+    const fm = this.fm(file);
+    return resolveImage(this.app, fm.image, file.path) || (Array.isArray(fm.gallery) ? fm.gallery.map(g => resolveImage(this.app, g, file.path)).find(Boolean) : null) || null;
+  },
+  avatar(parent, file) {
+    const t = this.thumbFor(file); if (!t) return null;
+    const im = parent.createEl('img', { cls: 'dmc-avatar', attr: { alt: '', loading: 'lazy' } }); im.src = t.url; return im;
+  },
+  async saveImagesFor(file, blobs) {
+    const out = [];
+    for (const b of blobs) { try { out.push(await saveImageToVault(this.app, b, b.name || 'image.png', file.path)); } catch (e) { new Notice('Could not save image: ' + e.message); } }
+    return out;
+  },
+  async setPortrait(file, img) { await this.app.fileManager.processFrontMatter(file, fm => { fm.image = img ? imageLinkFor(this.app, img, file.path) : ''; }); },
+  async addToGallery(file, imgs) {
+    if (!imgs.length) return;
+    await this.app.fileManager.processFrontMatter(file, fm => { const g = Array.isArray(fm.gallery) ? fm.gallery : fm.gallery ? [fm.gallery] : []; imgs.forEach(f => g.push(imageLinkFor(this.app, f, file.path))); fm.gallery = g; });
+    new Notice(imgs.length === 1 ? 'Added 1 image to the gallery' : 'Added ' + imgs.length + ' images to the gallery');
+  },
+  /** ```portrait``` — the note's `image` property, with upload / pick / drop / paste. */
+  renderPortrait(src, el, ctx) {
+    el.addClass('dmc-portrait-block'); lpSafe(el);
+    const host = this.app.vault.getAbstractFileByPath(ctx.sourcePath); if (!(host instanceof TFile)) return;
+    let o = {}; try { o = parseYaml(src) || {}; } catch (e) {}
+    const size = ['small', 'large'].includes(o.size) ? o.size : 'medium';
+    const draw = () => {
+      el.empty();
+      const img = resolveImage(this.app, this.fm(host).image, host.path);
+      const card = el.createDiv({ cls: 'dmc-portrait is-' + size + (img ? '' : ' is-empty') });
+      makeImageDropTarget(card, async fs => { const [f] = await this.saveImagesFor(host, fs.slice(0, 1)); if (f) await this.setPortrait(host, f); });
+      if (img) {
+        const im = card.createEl('img', { attr: { alt: host.basename } }); im.src = img.url;
+        im.addEventListener('click', () => new ImageLightbox(this.app, [{ url: img.url, caption: host.basename, file: img.file }], 0).open());
+      } else {
+        const ic = card.createDiv({ cls: 'dmc-portrait-ic' }); setIcon(ic, 'image-plus');
+        card.createDiv({ cls: 'dmc-muted', text: 'Drop or paste a portrait' });
+      }
+      const bar = card.createDiv({ cls: 'dmc-portrait-bar' });
+      const b1 = button(bar, img ? '' : 'Upload', 'upload', async () => { const fs = await chooseImageFiles(false); if (!fs.length) return; const [f] = await this.saveImagesFor(host, fs); if (f) await this.setPortrait(host, f); }, 'dmc-icon-btn'); b1.setAttr('title', img ? 'Replace with an image from your computer' : 'Upload an image');
+      const b2 = button(bar, img ? '' : 'From vault', 'image', () => new ImageSuggestModal(this.app, f => this.setPortrait(host, f)).open(), 'dmc-icon-btn'); b2.setAttr('title', 'Choose an image already in the vault');
+      if (img) { const b3 = button(bar, '', 'x', () => this.setPortrait(host, null), 'dmc-icon-btn'); b3.setAttr('title', 'Remove portrait (keeps the image file)'); }
+    };
+    const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+    child.registerEvent(this.app.metadataCache.on('changed', f => { if (f.path === host.path) draw(); }));
+    draw();
+  },
+  /** ```gallery``` — the note's `gallery` property: a grid with captions, cover, lightbox. */
+  renderGallery(src, el, ctx) {
+    el.addClass('dmc-gallery-block'); lpSafe(el);
+    const host = this.app.vault.getAbstractFileByPath(ctx.sourcePath); if (!(host instanceof TFile)) return;
+    const raw = () => { const g = this.fm(host).gallery; return Array.isArray(g) ? g : g ? [g] : []; };
+    const edit = fn => this.app.fileManager.processFrontMatter(host, fm => { const g = Array.isArray(fm.gallery) ? fm.gallery : fm.gallery ? [fm.gallery] : []; fm.gallery = fn(g) || g; });
+    const draw = () => {
+      el.empty();
+      const list = raw().map((v, i) => ({ i, v, img: resolveImage(this.app, v, host.path) }));
+      const items = list.filter(x => x.img);
+      const head = el.createDiv({ cls: 'dmc-gallery-head' });
+      head.createSpan({ cls: 'dmc-muted', text: items.length ? items.length + ' image' + (items.length === 1 ? '' : 's') + ' · drop or paste to add more' : 'No images yet — drop or paste images here.' });
+      const acts = head.createDiv({ cls: 'dmc-row' });
+      button(acts, 'Add images', 'image-plus', async () => { const fs = await chooseImageFiles(true); if (fs.length) await this.addToGallery(host, await this.saveImagesFor(host, fs)); });
+      button(acts, 'From vault', 'image', () => new ImageSuggestModal(this.app, f => this.addToGallery(host, [f])).open());
+      const grid = el.createDiv({ cls: 'dmc-gallery' + (items.length ? '' : ' is-empty') });
+      makeImageDropTarget(el, async fs => this.addToGallery(host, await this.saveImagesFor(host, fs)));
+      const missing = list.filter(x => !x.img);
+      items.forEach((x, k) => {
+        const tile = grid.createDiv({ cls: 'dmc-gtile' + (k === 0 ? ' is-cover' : '') });
+        const im = tile.createEl('img', { attr: { alt: x.img.caption || x.img.name, loading: 'lazy' } }); im.src = x.img.url;
+        im.addEventListener('click', () => new ImageLightbox(this.app, items.map(y => ({ url: y.img.url, caption: y.img.caption || y.img.name, file: y.img.file })), k).open());
+        if (x.img.caption) tile.createDiv({ cls: 'dmc-gcap', text: x.img.caption });
+        if (k === 0 && items.length > 1) tile.createDiv({ cls: 'dmc-gbadge', text: 'Cover' });
+        const tools = tile.createDiv({ cls: 'dmc-gtools' });
+        const t1 = button(tools, '', 'pencil', () => new PromptModal(this.app, 'Caption', 'e.g. The market square at dusk', v => edit(g => { g[x.i] = imageLinkFor(this.app, x.img.file, host.path, v); }), { value: x.img.caption, allowEmpty: true, cta: 'Save caption' }).open(), 'dmc-icon-btn'); t1.setAttr('title', 'Caption');
+        if (k > 0) { const t2 = button(tools, '', 'star', () => edit(g => { const [it] = g.splice(x.i, 1); g.unshift(it); }), 'dmc-icon-btn'); t2.setAttr('title', 'Make cover (first image)'); }
+        const t3 = button(tools, '', 'x', () => edit(g => { g.splice(x.i, 1); }), 'dmc-icon-btn'); t3.setAttr('title', 'Remove from gallery (keeps the image file)');
+      });
+      if (missing.length) el.createDiv({ cls: 'dmc-muted', text: missing.length + ' gallery entr' + (missing.length === 1 ? 'y points' : 'ies point') + ' to a missing image: ' + missing.map(x => String(x.v)).join(', ') });
+    };
+    const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+    child.registerEvent(this.app.metadataCache.on('changed', f => { if (f.path === host.path) draw(); }));
+    draw();
+  },
+});
+
+/* ================================================================== */
+/* Banner (dashboard header + ```dm-banner``` block)                   */
+/* ================================================================== */
+const DEFAULT_BANNER_ART = "data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1600 420\" preserveAspectRatio=\"xMidYMid slice\"%3E%0A%3Cdefs%3E%0A%3ClinearGradient id=\"sky\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"%3E%3Cstop offset=\"0\" stop-color=\"%230f1430\"/%3E%3Cstop offset=\".45\" stop-color=\"%233a2552\"/%3E%3Cstop offset=\".75\" stop-color=\"%23a3434a\"/%3E%3Cstop offset=\"1\" stop-color=\"%23e98a45\"/%3E%3C/linearGradient%3E%0A%3CradialGradient id=\"glow\" cx=\".72\" cy=\".62\" r=\".5\"%3E%3Cstop offset=\"0\" stop-color=\"%23ffb35c\" stop-opacity=\".55\"/%3E%3Cstop offset=\"1\" stop-color=\"%23ffb35c\" stop-opacity=\"0\"/%3E%3C/radialGradient%3E%0A%3ClinearGradient id=\"mist\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"%3E%3Cstop offset=\"0\" stop-color=\"%23d9a2a0\" stop-opacity=\"0\"/%3E%3Cstop offset=\".5\" stop-color=\"%23d9a2a0\" stop-opacity=\".35\"/%3E%3Cstop offset=\"1\" stop-color=\"%23d9a2a0\" stop-opacity=\"0\"/%3E%3C/linearGradient%3E%0A%3C/defs%3E%0A%3Crect width=\"1600\" height=\"420\" fill=\"url%28%23sky%29\"/%3E%0A%3Crect width=\"1600\" height=\"420\" fill=\"url%28%23glow%29\"/%3E%0A%3Cg fill=\"%23fff\"%3E%3Ccircle cx=\"663\" cy=\"38\" r=\"1.6\" opacity=\"0.9\"/%3E%3Ccircle cx=\"98\" cy=\"18\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1193\" cy=\"14\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"176\" cy=\"111\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"492\" cy=\"23\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1158\" cy=\"31\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1284\" cy=\"149\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1199\" cy=\"101\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"95\" cy=\"142\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"858\" cy=\"36\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"631\" cy=\"143\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1191\" cy=\"146\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"199\" cy=\"140\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"122\" cy=\"158\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1393\" cy=\"136\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"953\" cy=\"149\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"613\" cy=\"63\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1597\" cy=\"62\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"614\" cy=\"134\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1493\" cy=\"114\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"149\" cy=\"30\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1550\" cy=\"87\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"863\" cy=\"10\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1173\" cy=\"80\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"717\" cy=\"152\" r=\"1.6\" opacity=\"0.9\"/%3E%3Ccircle cx=\"934\" cy=\"17\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"970\" cy=\"178\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1497\" cy=\"179\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1183\" cy=\"174\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1467\" cy=\"98\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"945\" cy=\"90\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"239\" cy=\"126\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1573\" cy=\"73\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"507\" cy=\"101\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"165\" cy=\"42\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1125\" cy=\"71\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1126\" cy=\"71\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1398\" cy=\"97\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"169\" cy=\"45\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1348\" cy=\"59\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1206\" cy=\"46\" r=\"1.2\" opacity=\"0.7\"/%3E%3Ccircle cx=\"8\" cy=\"37\" r=\"1.6\" opacity=\"0.9\"/%3E%3Ccircle cx=\"756\" cy=\"156\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1414\" cy=\"131\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1597\" cy=\"174\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"817\" cy=\"100\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1299\" cy=\"102\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"137\" cy=\"53\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"225\" cy=\"87\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"0\" cy=\"145\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"207\" cy=\"93\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"425\" cy=\"157\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1299\" cy=\"64\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"745\" cy=\"121\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"999\" cy=\"119\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"638\" cy=\"21\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1535\" cy=\"87\" r=\"1.2\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1417\" cy=\"41\" r=\"0.8\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1081\" cy=\"92\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1112\" cy=\"6\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"186\" cy=\"178\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"751\" cy=\"42\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1090\" cy=\"138\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"456\" cy=\"156\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"820\" cy=\"189\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1060\" cy=\"126\" r=\"1.2\" opacity=\"0.9\"/%3E%3Ccircle cx=\"59\" cy=\"7\" r=\"1.2\" opacity=\"0.7\"/%3E%3Ccircle cx=\"530\" cy=\"49\" r=\"1.2\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1480\" cy=\"89\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"451\" cy=\"26\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"402\" cy=\"86\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1278\" cy=\"156\" r=\"0.8\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1337\" cy=\"88\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"245\" cy=\"99\" r=\"1\" opacity=\"0.7\"/%3E%3Ccircle cx=\"365\" cy=\"111\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1478\" cy=\"101\" r=\"1.6\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1522\" cy=\"21\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"260\" cy=\"7\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"953\" cy=\"167\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1220\" cy=\"121\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"1123\" cy=\"140\" r=\"1\" opacity=\"0.5\"/%3E%3Ccircle cx=\"29\" cy=\"185\" r=\"0.8\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1534\" cy=\"35\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"432\" cy=\"7\" r=\"1.2\" opacity=\"0.5\"/%3E%3Ccircle cx=\"599\" cy=\"128\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"667\" cy=\"66\" r=\"1.6\" opacity=\"0.5\"/%3E%3Ccircle cx=\"124\" cy=\"189\" r=\"1.2\" opacity=\"0.7\"/%3E%3Ccircle cx=\"1356\" cy=\"149\" r=\"1.6\" opacity=\"0.9\"/%3E%3Ccircle cx=\"267\" cy=\"136\" r=\"1\" opacity=\"0.9\"/%3E%3Ccircle cx=\"1045\" cy=\"4\" r=\"1.6\" opacity=\"0.5\"/%3E%3C/g%3E%0A%3Ccircle cx=\"310\" cy=\"92\" r=\"34\" fill=\"%23f6ecd2\"/%3E%3Ccircle cx=\"324\" cy=\"84\" r=\"32\" fill=\"%23141a3a\" opacity=\".9\"/%3E%0A%3Cpolygon points=\"0,420 0,228 80,256 160,274 240,271 320,268 400,224 480,236 560,227 640,251 720,268 800,248 880,250 960,261 1040,244 1120,270 1200,233 1280,226 1360,251 1440,221 1520,277 1600,273 1600,420\" fill=\"%235b3a63\" opacity=\".85\"/%3E%0A%3Cpolygon points=\"0,420 0,262 60,264 120,264 180,282 240,269 300,306 360,310 420,301 480,278 540,275 600,297 660,272 720,297 780,261 840,296 900,302 960,269 1020,286 1080,299 1140,284 1200,310 1260,305 1320,291 1380,282 1440,293 1500,287 1560,291 1600,420\" fill=\"%233f2a4f\"/%3E%0A%3Crect y=\"270\" width=\"1600\" height=\"60\" fill=\"url%28%23mist%29\"/%3E%0A%3Cg fill=\"%23120d1c\"%3E%0A%3Cpath d=\"M960 300 L1010 230 L1060 215 L1100 170 L1160 168 L1200 205 L1250 220 L1300 300 Z\"/%3E%0A%3Crect x=\"1085\" y=\"120\" width=\"26\" height=\"70\"/%3E%3Cpath d=\"M1080 120 L1098 92 L1116 120Z\"/%3E%0A%3Crect x=\"1150\" y=\"105\" width=\"30\" height=\"85\"/%3E%3Cpath d=\"M1145 105 L1165 72 L1185 105Z\"/%3E%0A%3Crect x=\"1108\" y=\"140\" width=\"45\" height=\"50\"/%3E%0A%3Crect x=\"1108\" y=\"132\" width=\"7\" height=\"9\"/%3E%3Crect x=\"1122\" y=\"132\" width=\"7\" height=\"9\"/%3E%3Crect x=\"1136\" y=\"132\" width=\"7\" height=\"9\"/%3E%0A%3Crect x=\"1196\" y=\"150\" width=\"20\" height=\"45\"/%3E%3Cpath d=\"M1192 150 L1206 128 L1220 150Z\"/%3E%0A%3C/g%3E%0A%3Cg fill=\"%23ffc46b\"%3E%3Crect x=\"1094\" y=\"140\" width=\"5\" height=\"8\"/%3E%3Crect x=\"1161\" y=\"122\" width=\"6\" height=\"9\"/%3E%3Crect x=\"1128\" y=\"160\" width=\"5\" height=\"7\"/%3E%3Crect x=\"1203\" y=\"165\" width=\"4\" height=\"7\"/%3E%3C/g%3E%0A%3Cpolygon points=\"0,420 0,323 50,334 100,333 150,320 200,327 250,335 300,331 350,336 400,334 450,318 500,335 550,316 600,342 650,331 700,324 750,333 800,323 850,322 900,338 950,331 1000,333 1050,342 1100,333 1150,331 1200,328 1250,336 1300,343 1350,320 1400,323 1450,336 1500,320 1550,343 1600,332 1600,420\" fill=\"%2322182f\"/%3E%0A%3Cg fill=\"%231a1326\"%3E%3Cpath d=\"M463 308 L484 363 L442 363Z\"/%3E%3Cpath d=\"M791 280 L815 342 L767 342Z\"/%3E%3Cpath d=\"M116 314 L132 357 L100 357Z\"/%3E%3Cpath d=\"M572 288 L601 364 L543 364Z\"/%3E%3Cpath d=\"M100 306 L120 357 L80 357Z\"/%3E%3Cpath d=\"M717 291 L737 345 L697 345Z\"/%3E%3Cpath d=\"M197 287 L217 340 L177 340Z\"/%3E%3Cpath d=\"M1292 272 L1321 348 L1263 348Z\"/%3E%3Cpath d=\"M376 300 L395 349 L357 349Z\"/%3E%3Cpath d=\"M1264 273 L1294 351 L1234 351Z\"/%3E%3Cpath d=\"M157 273 L186 350 L128 350Z\"/%3E%3Cpath d=\"M1355 289 L1377 347 L1333 347Z\"/%3E%3Cpath d=\"M344 296 L364 348 L324 348Z\"/%3E%3Cpath d=\"M162 275 L193 357 L131 357Z\"/%3E%3Cpath d=\"M594 307 L610 349 L578 349Z\"/%3E%3Cpath d=\"M1152 277 L1179 349 L1125 349Z\"/%3E%3Cpath d=\"M1547 290 L1571 353 L1523 353Z\"/%3E%3Cpath d=\"M847 286 L873 353 L821 353Z\"/%3E%3Cpath d=\"M904 300 L923 349 L885 349Z\"/%3E%3Cpath d=\"M511 265 L540 341 L482 341Z\"/%3E%3Cpath d=\"M146 316 L163 360 L129 360Z\"/%3E%3Cpath d=\"M554 296 L578 360 L530 360Z\"/%3E%3Cpath d=\"M945 273 L972 344 L918 344Z\"/%3E%3Cpath d=\"M1359 303 L1378 353 L1340 353Z\"/%3E%3Cpath d=\"M395 285 L421 354 L369 354Z\"/%3E%3Cpath d=\"M545 303 L564 353 L526 353Z\"/%3E%3Cpath d=\"M1509 293 L1534 360 L1484 360Z\"/%3E%3Cpath d=\"M1123 300 L1142 350 L1104 350Z\"/%3E%3Cpath d=\"M186 285 L215 362 L157 362Z\"/%3E%3Cpath d=\"M448 304 L468 358 L428 358Z\"/%3E%3Cpath d=\"M1240 265 L1270 343 L1210 343Z\"/%3E%3Cpath d=\"M658 268 L689 349 L627 349Z\"/%3E%3Cpath d=\"M920 308 L936 351 L904 351Z\"/%3E%3Cpath d=\"M1408 304 L1425 349 L1391 349Z\"/%3E%3Cpath d=\"M1485 280 L1512 350 L1458 350Z\"/%3E%3Cpath d=\"M17 294 L38 350 L-4 350Z\"/%3E%3Cpath d=\"M293 278 L321 353 L265 353Z\"/%3E%3Cpath d=\"M1250 271 L1277 342 L1223 342Z\"/%3E%3Cpath d=\"M580 286 L606 354 L554 354Z\"/%3E%3Cpath d=\"M578 304 L596 352 L560 352Z\"/%3E%3Cpath d=\"M1206 268 L1237 350 L1175 350Z\"/%3E%3Cpath d=\"M1153 299 L1169 341 L1137 341Z\"/%3E%3Cpath d=\"M911 302 L930 351 L892 351Z\"/%3E%3Cpath d=\"M574 288 L599 354 L549 354Z\"/%3E%3Cpath d=\"M404 286 L427 346 L381 346Z\"/%3E%3Cpath d=\"M212 297 L229 341 L195 341Z\"/%3E%3Cpath d=\"M1489 312 L1508 361 L1470 361Z\"/%3E%3Cpath d=\"M286 290 L312 357 L260 357Z\"/%3E%3Cpath d=\"M984 284 L1009 350 L959 350Z\"/%3E%3Cpath d=\"M52 309 L70 356 L34 356Z\"/%3E%3Cpath d=\"M579 279 L607 353 L551 353Z\"/%3E%3Cpath d=\"M1314 272 L1346 355 L1282 355Z\"/%3E%3Cpath d=\"M393 301 L413 353 L373 353Z\"/%3E%3Cpath d=\"M987 309 L1004 353 L970 353Z\"/%3E%3Cpath d=\"M888 301 L908 353 L868 353Z\"/%3E%3Cpath d=\"M421 278 L445 341 L397 341Z\"/%3E%3Cpath d=\"M55 294 L75 347 L35 347Z\"/%3E%3Cpath d=\"M1056 296 L1075 347 L1037 347Z\"/%3E%3Cpath d=\"M834 265 L864 344 L804 344Z\"/%3E%3Cpath d=\"M645 306 L662 350 L628 350Z\"/%3E%3Cpath d=\"M1137 311 L1155 358 L1119 358Z\"/%3E%3Cpath d=\"M805 278 L836 360 L774 360Z\"/%3E%3Cpath d=\"M1319 283 L1349 362 L1289 362Z\"/%3E%3Cpath d=\"M1505 308 L1522 352 L1488 352Z\"/%3E%3Cpath d=\"M170 298 L193 358 L147 358Z\"/%3E%3Cpath d=\"M318 305 L339 361 L297 361Z\"/%3E%3Cpath d=\"M945 284 L974 360 L916 360Z\"/%3E%3Cpath d=\"M625 280 L654 356 L596 356Z\"/%3E%3Cpath d=\"M420 292 L446 361 L394 361Z\"/%3E%3Cpath d=\"M1620 299 L1640 352 L1600 352Z\"/%3E%3C/g%3E%0A%3Cpolygon points=\"0,420 0,394 40,383 80,386 120,395 160,391 200,375 240,389 280,382 320,395 360,376 400,380 440,378 480,386 520,390 560,382 600,387 640,392 680,378 720,393 760,382 800,375 840,381 880,388 920,383 960,380 1000,387 1040,380 1080,377 1120,379 1160,394 1200,394 1240,389 1280,379 1320,379 1360,375 1400,375 1440,381 1480,381 1520,380 1560,380 1600,384 1600,420\" fill=\"%23120c1a\"/%3E%0A%3Cg fill=\"%230d0913\"%3E%3Cpath d=\"M1604 317 L1636 402 L1572 402Z\"/%3E%3Cpath d=\"M973 306 L1009 401 L937 401Z\"/%3E%3Cpath d=\"M-20 356 L4 418 L-44 418Z\"/%3E%3Cpath d=\"M943 317 L983 423 L903 423Z\"/%3E%3Cpath d=\"M744 329 L771 400 L717 400Z\"/%3E%3Cpath d=\"M538 326 L569 406 L507 406Z\"/%3E%3Cpath d=\"M1474 316 L1512 417 L1436 417Z\"/%3E%3Cpath d=\"M1084 315 L1119 406 L1049 406Z\"/%3E%3Cpath d=\"M1133 339 L1165 423 L1101 423Z\"/%3E%3Cpath d=\"M523 329 L557 419 L489 419Z\"/%3E%3Cpath d=\"M1384 354 L1406 413 L1362 413Z\"/%3E%3Cpath d=\"M667 304 L708 411 L626 411Z\"/%3E%3Cpath d=\"M1618 332 L1647 408 L1589 408Z\"/%3E%3Cpath d=\"M891 332 L926 424 L856 424Z\"/%3E%3Cpath d=\"M383 317 L418 409 L348 409Z\"/%3E%3Cpath d=\"M179 313 L219 418 L139 418Z\"/%3E%3Cpath d=\"M391 312 L429 411 L353 411Z\"/%3E%3Cpath d=\"M976 302 L1016 406 L936 406Z\"/%3E%3Cpath d=\"M1034 337 L1066 422 L1002 422Z\"/%3E%3Cpath d=\"M1011 293 L1052 400 L970 400Z\"/%3E%3Cpath d=\"M1277 345 L1305 419 L1249 419Z\"/%3E%3Cpath d=\"M860 348 L887 418 L833 418Z\"/%3E%3Cpath d=\"M224 362 L246 421 L202 421Z\"/%3E%3Cpath d=\"M1055 354 L1080 419 L1030 419Z\"/%3E%3Cpath d=\"M1337 355 L1363 423 L1311 423Z\"/%3E%3Cpath d=\"M381 332 L409 407 L353 407Z\"/%3E%3Cpath d=\"M262 336 L295 422 L229 422Z\"/%3E%3Cpath d=\"M1049 369 L1070 424 L1028 424Z\"/%3E%3Cpath d=\"M326 355 L347 410 L305 410Z\"/%3E%3Cpath d=\"M1122 316 L1161 419 L1083 419Z\"/%3E%3Cpath d=\"M1246 341 L1273 412 L1219 412Z\"/%3E%3Cpath d=\"M1060 329 L1089 404 L1031 404Z\"/%3E%3Cpath d=\"M1370 293 L1411 401 L1329 401Z\"/%3E%3Cpath d=\"M359 346 L388 423 L330 423Z\"/%3E%3Cpath d=\"M794 355 L816 414 L772 414Z\"/%3E%3Cpath d=\"M482 304 L519 402 L445 402Z\"/%3E%3Cpath d=\"M1215 324 L1249 414 L1181 414Z\"/%3E%3Cpath d=\"M895 316 L932 412 L858 412Z\"/%3E%3Cpath d=\"M1610 355 L1632 413 L1588 413Z\"/%3E%3Cpath d=\"M944 343 L971 413 L917 413Z\"/%3E%3Cpath d=\"M155 357 L179 421 L131 421Z\"/%3E%3Cpath d=\"M524 345 L554 423 L494 423Z\"/%3E%3Cpath d=\"M1585 294 L1625 400 L1545 400Z\"/%3E%3Cpath d=\"M24 325 L56 408 L-8 408Z\"/%3E%3Cpath d=\"M1187 309 L1224 406 L1150 406Z\"/%3E%3Cpath d=\"M504 329 L535 410 L473 410Z\"/%3E%3Cpath d=\"M1038 345 L1064 413 L1012 413Z\"/%3E%3Cpath d=\"M843 321 L876 408 L810 408Z\"/%3E%3Cpath d=\"M1213 335 L1243 415 L1183 415Z\"/%3E%3Cpath d=\"M987 350 L1010 412 L964 412Z\"/%3E%3Cpath d=\"M997 343 L1024 414 L970 414Z\"/%3E%3Cpath d=\"M642 331 L670 405 L614 405Z\"/%3E%3Cpath d=\"M1248 345 L1276 419 L1220 419Z\"/%3E%3Cpath d=\"M524 341 L551 412 L497 412Z\"/%3E%3Cpath d=\"M979 312 L1014 405 L944 405Z\"/%3E%3Cpath d=\"M575 335 L607 419 L543 419Z\"/%3E%3Cpath d=\"M900 299 L940 405 L860 405Z\"/%3E%3Cpath d=\"M41 331 L74 418 L8 418Z\"/%3E%3Cpath d=\"M209 320 L244 411 L174 411Z\"/%3E%3Cpath d=\"M721 308 L762 415 L680 415Z\"/%3E%3C/g%3E%0A%3C/svg%3E";
+const BANNER_DEFAULTS = { show: true, image: '', subtitle: '', height: 200, focus: 35, align: 'center' };
+
+class BannerModal extends Modal {
+  constructor(plugin) { super(plugin.app); this.plugin = plugin; this.b = Object.assign({}, BANNER_DEFAULTS, plugin.settings.banner || {}); this.name = plugin.settings.campaignName; this.pending = null; }
+  onOpen() {
+    const p = this.plugin, b = this.b, c = this.contentEl;
+    this.modalEl.addClass('dmc-banner-modal'); c.addClass('dmc-modal');
+    c.createEl('h3', { text: 'Dashboard banner' });
+    const prev = c.createDiv({ cls: 'dmc-banner-prev' });
+    const draw = () => { prev.empty(); p.drawBanner(prev, { b, name: this.name, url: this.pending ? this.pending.url : null, preview: true }); };
+    makeImageDropTarget(prev, fs => setFile(fs[0]));
+    const g = c.createDiv({ cls: 'dmc-lv-grid' });
+    const nameIn = fEl(g, 'Campaign name (banner title)', inp('text', this.name, 'My Campaign'));
+    nameIn.addEventListener('input', () => { this.name = nameIn.value; draw(); });
+    const subIn = fEl(g, 'Second line (optional)', inp('text', b.subtitle, 'e.g. A tale of ash and crowns · Sundays 7pm'));
+    subIn.addEventListener('input', () => { b.subtitle = subIn.value; draw(); });
+    const imgRow = fEl(g, 'Image', document.createElement('div'), true); imgRow.addClass('dmc-row', 'dmc-wrap');
+    const drawImgRow = () => {
+      imgRow.empty();
+      button(imgRow, 'Upload image…', 'upload', async () => { const fs = await chooseImageFiles(false); if (fs[0]) setFile(fs[0]); });
+      button(imgRow, 'From vault…', 'image', () => new ImageSuggestModal(this.app, f => { this.pending = null; b.image = f.path; drawImgRow(); draw(); }).open());
+      if (b.image || this.pending) button(imgRow, 'Use default art', 'rotate-ccw', () => { this.pending = null; b.image = ''; drawImgRow(); draw(); });
+      imgRow.createSpan({ cls: 'dmc-muted', text: this.pending ? this.pending.name + ' (saved when you click Save)' : b.image ? b.image : 'Default art · or drop / paste an image on the preview' });
+    };
+    const setFile = f => { this.pending = { blob: f, name: f.name || 'banner.png', url: URL.createObjectURL(f) }; drawImgRow(); draw(); };
+    drawImgRow();
+    const h = fEl(g, 'Height', inp('range', String(b.height))); h.min = '110'; h.max = '340'; h.step = '10';
+    h.addEventListener('input', () => { b.height = Number(h.value); draw(); });
+    const fo = fEl(g, 'Image position (top ↔ bottom)', inp('range', String(b.focus))); fo.min = '0'; fo.max = '100';
+    fo.addEventListener('input', () => { b.focus = Number(fo.value); draw(); });
+    const al = fEl(g, 'Text position', sel([['center', 'Centre'], ['left', 'Bottom left']], b.align));
+    al.addEventListener('change', () => { b.align = al.value; draw(); });
+    const sh = fEl(g, 'Show on the dashboard', sel([['true', 'Yes'], ['false', 'No — plain header']], String(b.show !== false)));
+    sh.addEventListener('change', () => { b.show = sh.value === 'true'; });
+    draw();
+    const row = c.createDiv({ cls: 'dmc-row' });
+    button(row, 'Save', 'check', async () => {
+      if (this.pending) {
+        try { const f = await saveImageToVault(this.app, this.pending.blob, 'DM Codex banner.' + ((this.pending.name.match(/\.([a-z0-9]+)$/i) || [, IMG_MIME_EXT[this.pending.blob.type] || 'png'])[1]), (p.settings.folders.campaign || 'Campaign') + '/Campaign Summary.md'); b.image = f.path; }
+        catch (e) { new Notice('Could not save the image: ' + e.message); return; }
+      }
+      p.settings.banner = b; p.settings.campaignName = this.name.trim() || p.settings.campaignName;
+      await p.saveSettings(); p.refreshBanners(); this.close();
+    }, 'mod-cta');
+    button(row, 'Cancel', null, () => this.close());
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
+Object.assign(DMCodexPlugin.prototype, {
+  bannerSettings() { return Object.assign({}, BANNER_DEFAULTS, this.settings.banner || {}); },
+  bannerUrl(b) {
+    if (!b.image) return DEFAULT_BANNER_ART;
+    const f = this.app.vault.getAbstractFileByPath(b.image);
+    if (f instanceof TFile) return this.app.vault.getResourcePath(f);
+    const r = resolveImage(this.app, b.image, ''); return r ? r.url : DEFAULT_BANNER_ART;
+  },
+  /** Draw the banner. opts: { b, name, url, preview, onEdit } */
+  drawBanner(parent, opts = {}) {
+    const b = opts.b || this.bannerSettings();
+    const el = parent.createDiv({ cls: 'dmc-banner is-' + (b.align === 'left' ? 'left' : 'center') });
+    el.style.height = (Number(b.height) || 200) + 'px';
+    const img = el.createEl('img', { attr: { alt: '' } }); img.src = opts.url || this.bannerUrl(b); img.style.objectPosition = 'center ' + (b.focus ?? 60) + '%';
+    img.onerror = () => { if (img.src !== DEFAULT_BANNER_ART) img.src = DEFAULT_BANNER_ART; };
+    const t = el.createDiv({ cls: 'dmc-banner-text' });
+    const name = opts.name != null ? opts.name : this.settings.campaignName;
+    if (name) t.createDiv({ cls: 'dmc-banner-title', text: name });
+    if (b.subtitle) t.createDiv({ cls: 'dmc-banner-sub', text: b.subtitle });
+    if (!opts.preview) {
+      const e = button(el, '', 'pencil', () => new BannerModal(this).open(), 'dmc-icon-btn dmc-banner-edit'); e.setAttr('title', 'Edit banner'); e.setAttr('aria-label', 'Edit banner');
+    }
+    return el;
+  },
+  refreshBanners() {
+    this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l => l.view.render && l.view.render());
+    (this._bannerBlocks || []).forEach(fn => { try { fn(); } catch (e) {} });
+  },
+  renderBannerBlock(src, el, ctx) {
+    el.addClass('dmc-banner-block'); lpSafe(el);
+    const draw = () => { el.empty(); this.drawBanner(el); };
+    this._bannerBlocks = (this._bannerBlocks || []).filter(fn => fn.el && fn.el.isConnected);
+    draw.el = el; this._bannerBlocks.push(draw);
+    draw();
   },
 });
 

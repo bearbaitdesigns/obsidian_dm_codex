@@ -85,7 +85,7 @@ def install_plugins(vault, pack, statblocks):
     codex = os.path.join(cfg, 'dm-codex'); os.makedirs(codex, exist_ok=True)
     for f in PLUGIN_FILES:
         shutil.copy(os.path.join(ROOT, f), codex)
-    data = {'campaignName': 'The Ashen Crown', 'contentVersion': pack['version'],
+    data = {'campaignName': 'The Ashen Crown', 'banner': {'subtitle': 'A tale of fire, ash and a stolen crown'}, 'contentVersion': pack['version'],
             'managed': {k: content_hash(v) for k, v in pack['files'].items()}}
     json.dump(data, open(os.path.join(codex, 'data.json'), 'w'), indent=1)
     if statblocks:
