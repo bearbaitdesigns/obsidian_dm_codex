@@ -386,3 +386,22 @@ a.dmc-btn.dmc-ddb .dmc-btn-icon { color:#e40712; }
 .dmc-banner-prev.is-dragover { outline:2px dashed var(--interactive-accent); outline-offset:3px; }
 .dmc-banner-prev .dmc-banner { max-height: 260px; }
 .dmc-banner-add { margin-left:auto; }
+
+/* ---------- import armory items & spells from image / text ---------- */
+.dmc-import { border:1px solid var(--background-modifier-border); border-radius:10px; padding:8px 10px; margin-bottom:10px; background: var(--background-secondary); }
+.dmc-import > summary { cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; list-style:none; }
+.dmc-import > summary::-webkit-details-marker { display:none; }
+.dmc-import > summary::after { content:'▸'; margin-left:auto; color: var(--text-muted); }
+.dmc-import[open] > summary::after { content:'▾'; }
+.dmc-import[open] > summary { margin-bottom:6px; }
+.dmc-drop { border:2px dashed var(--background-modifier-border); border-radius:10px; padding:14px; margin:8px 0; text-align:center; display:flex; flex-direction:column; align-items:center; gap:6px; color: var(--text-muted); outline:none; }
+.dmc-drop:focus { border-color: var(--interactive-accent); }
+.dmc-drop-ic svg { width:28px; height:28px; }
+.dmc-drop.has-image { flex-direction:row; align-items:flex-start; text-align:left; padding:8px; }
+.dmc-drop-img { max-width:180px; max-height:180px; object-fit:contain; border-radius:6px; background: var(--background-primary); }
+.dmc-drop-side { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+.dmc-drop-name { color: var(--text-normal); font-weight:600; word-break: break-all; }
+.dmc-import-text { width:100%; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); }
+.dmc-import-status { min-height:1.2em; margin:4px 0; font-size: var(--font-ui-small); }
+.dmc-ok { color: var(--color-green); } .dmc-warn { color: var(--color-orange); }
+.dmc-drop.is-dragover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }

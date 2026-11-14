@@ -79,3 +79,7 @@ Pushes that don't change the version just refresh the current release's files (h
 
 ## Licence
 Code: MIT. Game content includes material from the System Reference Document 5.2 ("SRD 5.2") by Wizards of the Coast LLC, available at https://www.dndbeyond.com/srd, licensed under the [Creative Commons Attribution 4.0 International License](https://creativecommons.org/licenses/by/4.0/legalcode). Rules text is summarised and paraphrased for table use.
+
+## Network use
+
+Importing armory items and spells from a picture uses [Tesseract.js](https://github.com/naptha/tesseract.js) (OCR), downloaded from `cdn.jsdelivr.net` the first time you use it and only after you agree. Your image is processed on your device and never uploaded. Turn it off in Settings → DM Codex; pasting text works offline.

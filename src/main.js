@@ -12,7 +12,7 @@ const {
 } = obsidian;
 
 /* Icon helper with fallbacks for older Obsidian versions whose bundled Lucide lacks newer names. */
-const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] , 'image-plus': ['image', 'plus'], 'upload': ['arrow-up', 'file-plus'], 'trending-up': ['arrow-up-right', 'arrow-up'], 'image': ['file'], 'rotate-ccw': ['refresh-ccw', 'undo']};
+const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] , 'image-plus': ['image', 'plus'], 'upload': ['arrow-up', 'file-plus'], 'trending-up': ['arrow-up-right', 'arrow-up'], 'image': ['file'], 'rotate-ccw': ['refresh-ccw', 'undo'], 'scan-text': ['scan', 'file-text'], 'wand': ['wand-sparkles', 'sparkles']};
 function setIcon(el, name) {
   const tryOne = n => { try { if (el.empty) el.empty(); obsidian.setIcon(el, n); } catch (e) { return false; } return !!(el.querySelector && el.querySelector('svg')); };
   if (tryOne(name)) return;
@@ -62,6 +62,7 @@ const DEFAULT_SETTINGS = {
   openNewNote: true,
   folders: Object.fromEntries(Object.entries(TYPES).map(([k, v]) => [k, v.folder])),
   dashboardTab: 'overview',
+  ocrAllowed: null,
   banner: { show: true, image: '', subtitle: '', height: 200, focus: 35, align: 'center' },
   contentVersion: null,
   managed: {},
@@ -480,6 +481,7 @@ class DashboardView extends ItemView {
         ['Magic item', 'gem', create('item'), 'New magic item'],
         ['Spell', 'wand-sparkles', create('spell'), 'New spell'],
         ['Random loot', 'sparkles', () => new ArmoryGenModal(p).open(), 'Random weapons, armor, gear and magic items'],
+        ['Import', 'scan-text', () => new ImportKindModal(p).open(), 'Import a weapon, armor, gear, magic item or spell from a picture or pasted text'],
       ] },
       { title: 'Generators', icon: 'sparkles', items: [
         ['Side quest', 'sparkles', () => new SideQuestModal(p).open(), 'Side quest generator'],
@@ -668,6 +670,7 @@ class DMCodexSettingTab extends PluginSettingTab {
     const { containerEl } = this; containerEl.empty();
     const s = this.plugin.settings;
     new Setting(containerEl).setName('Campaign name').addText(t => t.setValue(s.campaignName).onChange(async v => { s.campaignName = v; await this.plugin.saveSettings(); this.plugin.refreshBanners(); }));
+    new Setting(containerEl).setName('Read text from images (OCR)').setDesc('Import armory items and spells from a picture. The first time, this downloads the free Tesseract OCR engine (about 15 MB) from cdn.jsdelivr.net; your image never leaves your device. Off = you can still paste text.').addToggle(t => t.setValue(s.ocrAllowed === true).onChange(async v => { s.ocrAllowed = v; await this.plugin.saveSettings(); }));
     new Setting(containerEl).setName('Dashboard banner').setDesc('Image, campaign name and an optional second line at the top of the dashboard (and in ```dm-banner``` blocks).').addButton(b => b.setButtonText('Edit banner…').onClick(() => new BannerModal(this.plugin).open()));
     new Setting(containerEl).setName('Templates folder').setDesc('Notes are created from "<folder>/<Type>.md" if it exists (e.g. Templates/NPC.md). Variables: {{title}}, {{date}}, {{number}}, {{prev}}, {{campaign}}, {{link}}.')
       .addText(t => t.setValue(s.templatesFolder).onChange(async v => { s.templatesFolder = v; await this.plugin.saveSettings(); }));
@@ -745,6 +748,7 @@ class DMCodexPlugin extends Plugin {
       if (t === 'session' || t === 'prep') this.pickPartner(f); else new Notice('Open a session or session prep note first.');
     } });
     this.addCommand({ id: 'random-armory', name: 'Generate random armory (weapons, armor, gear, magic items)', callback: () => new ArmoryGenModal(this).open() });
+    this.addCommand({ id: 'import-armory', name: 'Import an armory item or spell from an image or text…', callback: () => new ImportKindModal(this).open() });
     this.addCommand({ id: 'random-spell', name: 'Generate a random spell', callback: () => new SpellGenModal(this).open() });
     this.registerMarkdownCodeBlockProcessor('random-armory', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderArmoryGenWidget(el, ctx.sourcePath); });
     this.registerMarkdownCodeBlockProcessor('spell-generator', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderSpellGenWidget(el, ctx.sourcePath); });
@@ -1482,6 +1486,8 @@ class ItemBuilderModal extends Modal {
     const form = layout.createDiv({ cls: 'dmc-builder-form' });
     const prevWrap = layout.createDiv({ cls: 'dmc-builder-preview' });
     const sec = t => { form.createDiv({ cls: 'dmc-sec', text: t }); return form.createDiv({ cls: 'dmc-form-grid' }); };
+    this.renderImport(form);
+    const I = (k, d) => this.init[k] != null && this.init[k] !== '' ? this.init[k] : d;
     let g = sec('Basics');
     const v = this.v = {};
     const name = fEl(g, 'Name', inp('text', this.init.name || '', this.kind === 'spell' ? 'e.g. Ashen Bolt' : 'e.g. Ember-Forged Longsword'));
@@ -1489,27 +1495,27 @@ class ItemBuilderModal extends Modal {
     const players = this.plugin.getNotes('player');
     const holderSel = () => { const s = fEl(g, 'Held by', sel([['', '— (catalog / unowned)'], ...players.map(f => [f.basename, f.basename]), ['__party', 'Party stash']], this.init.holder || '')); return s; };
     if (this.kind === 'weapon') {
-      const cat = fEl(g, 'Category', sel(['Simple Melee', 'Simple Ranged', 'Martial Melee', 'Martial Ranged'], 'Martial Melee'));
+      const cat = fEl(g, 'Category', sel(['Simple Melee', 'Simple Ranged', 'Martial Melee', 'Martial Ranged'], I('category', 'Martial Melee')));
       g = sec('Combat');
-      const dmg = fEl(g, 'Damage dice', inp('text', '1d8'));
-      const dt = fEl(g, 'Damage type', sel(DMG_TYPES, 'Slashing'));
-      const mastery = fEl(g, 'Mastery', sel(['', ...MASTERIES], 'Sap'));
-      const range = fEl(g, 'Range (thrown/ammo)', inp('text', '', '80/320'));
-      const vers = fEl(g, 'Versatile damage', inp('text', '', '1d10'));
+      const dmg = fEl(g, 'Damage dice', inp('text', I('damage', '1d8')));
+      const dt = fEl(g, 'Damage type', sel(DMG_TYPES, I('damage_type', 'Slashing')));
+      const mastery = fEl(g, 'Mastery', sel(['', ...MASTERIES], this.init.mastery != null ? this.init.mastery : 'Sap'));
+      const range = fEl(g, 'Range (thrown/ammo)', inp('text', I('range', ''), '80/320'));
+      const vers = fEl(g, 'Versatile damage', inp('text', I('versatile', ''), '1d10'));
       g = sec('Magic');
-      const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], '0'));
-      const rarity = fEl(g, 'Rarity', sel(RARITIES, ''));
-      const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], 'false'));
+      const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], String(I('magic_bonus', '0'))));
+      const rarity = fEl(g, 'Rarity', sel(RARITIES, I('rarity', '')));
+      const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], I('attunement', false) ? 'true' : 'false'));
       g = sec('Value & ownership');
-      const weight = fEl(g, 'Weight', inp('text', '', '3 lb.'));
-      const cost = fEl(g, 'Cost', inp('text', '', '15 gp'));
+      const weight = fEl(g, 'Weight', inp('text', I('weight', ''), '3 lb.'));
+      const cost = fEl(g, 'Cost', inp('text', I('cost', ''), '15 gp'));
       const holder = holderSel();
-      const qty = fEl(g, 'Quantity', inp('number', 1));
+      const qty = fEl(g, 'Quantity', inp('number', I('quantity', 1)));
       g = sec('Properties');
       const pw = g.createDiv({ cls: 'dmc-f dmc-span2' }); pw.createEl('label', { text: 'Weapon properties' }); const pbox = pw.createDiv({ cls: 'dmc-checks' });
-      const props = {}; WEAPON_PROPS.forEach(p => { const l = pbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); l.appendText(' ' + p); props[p] = cb; lpSafe(l); });
+      const props = {}; WEAPON_PROPS.forEach(p => { const l = pbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); l.appendText(' ' + p); cb.checked = (this.init.props || []).includes(p); props[p] = cb; lpSafe(l); });
       g = sec('Description');
-      const desc = fEl(g, 'Description / special properties', ta('', 'Magic effects, history, appearance…'), true);
+      const desc = fEl(g, 'Description / special properties', ta(I('desc', ''), 'Magic effects, history, appearance…'), true);
       this.build = () => {
         const b = Number(bonus.value);
         const plist = WEAPON_PROPS.filter(p => props[p].checked).map(p => p === 'Thrown' || p === 'Ammunition' ? p + (range.value ? ' (' + range.value.trim() + ')' : '') : p === 'Versatile' ? p + (vers.value ? ' (' + vers.value.trim() + ')' : '') : p);
@@ -1519,21 +1525,21 @@ class ItemBuilderModal extends Modal {
         return { fm, body };
       };
     } else if (this.kind === 'armor') {
-      const cat = fEl(g, 'Category', sel(['Light', 'Medium', 'Heavy', 'Shield'], 'Medium'));
+      const cat = fEl(g, 'Category', sel(['Light', 'Medium', 'Heavy', 'Shield'], I('category', 'Medium')));
       g = sec('Defense');
-      const base = fEl(g, 'Base AC', inp('number', 14));
-      const str = fEl(g, 'Strength requirement', inp('text', '', 'e.g. 15'));
-      const stealth = fEl(g, 'Stealth', sel([['', 'Normal'], ['Disadvantage', 'Disadvantage']], ''));
+      const base = fEl(g, 'Base AC', inp('number', I('base_ac', 14)));
+      const str = fEl(g, 'Strength requirement', inp('text', I('strength', ''), 'e.g. 15'));
+      const stealth = fEl(g, 'Stealth', sel([['', 'Normal'], ['Disadvantage', 'Disadvantage']], I('stealth', '')));
       g = sec('Magic');
-      const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], '0'));
-      const rarity = fEl(g, 'Rarity', sel(RARITIES, ''));
-      const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], 'false'));
+      const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], String(I('magic_bonus', '0'))));
+      const rarity = fEl(g, 'Rarity', sel(RARITIES, I('rarity', '')));
+      const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], I('attunement', false) ? 'true' : 'false'));
       g = sec('Value & ownership');
-      const weight = fEl(g, 'Weight', inp('text', '', '20 lb.'));
-      const cost = fEl(g, 'Cost', inp('text', '', '400 gp'));
+      const weight = fEl(g, 'Weight', inp('text', I('weight', ''), '20 lb.'));
+      const cost = fEl(g, 'Cost', inp('text', I('cost', ''), '400 gp'));
       const holder = holderSel();
       g = sec('Description');
-      const desc = fEl(g, 'Description / special properties', ta(''), true);
+      const desc = fEl(g, 'Description / special properties', ta(I('desc', '')), true);
       this.build = () => {
         const b = Number(bonus.value), n = Number(base.value) || 10;
         const ac = cat.value === 'Shield' ? '+' + (2 + b) : (n + b) + (cat.value === 'Light' ? ' + Dex modifier' : cat.value === 'Medium' ? ' + Dex modifier (max 2)' : '');
@@ -1542,27 +1548,28 @@ class ItemBuilderModal extends Modal {
         return { fm, body };
       };
     } else if (this.kind === 'gear') {
-      const cat = fEl(g, 'Category', sel(GEAR_CATS, 'Adventuring Gear'));
+      const cat = fEl(g, 'Category', sel(GEAR_CATS, I('category', 'Adventuring Gear')));
       g = sec('Value & ownership');
-      const cost = fEl(g, 'Cost', inp('text', '', '1 gp'));
-      const weight = fEl(g, 'Weight', inp('text', '', '1 lb.'));
+      const cost = fEl(g, 'Cost', inp('text', I('cost', ''), '1 gp'));
+      const weight = fEl(g, 'Weight', inp('text', I('weight', ''), '1 lb.'));
       const holder = holderSel();
-      const qty = fEl(g, 'Quantity', inp('number', 1));
+      const qty = fEl(g, 'Quantity', inp('number', I('quantity', 1)));
       g = sec('Description');
-      const desc = fEl(g, 'Description / how it works', ta(''), true);
+      const desc = fEl(g, 'Description / how it works', ta(I('desc', '')), true);
       this.build = () => {
         const fm = { type: 'gear', category: cat.value, cost: cost.value, weight: weight.value, holder: this.holderLink(holder.value), quantity: Number(qty.value) || 1, tags: ['armory', 'gear'] };
         return { fm, body: '> [!info] ' + cat.value + '\n> **Cost:** ' + (cost.value || '—') + ' · **Weight:** ' + (weight.value || '—') + '\n\n## Description\n' + (desc.value || '') + '\n\n## Owned copies\n```dm-list\nwhere: base\nfields: [holder, quantity]\nempty: No one owns a copy yet.\n```\n' };
       };
     } else if (this.kind === 'item') {
-      const kind = fEl(g, 'Item type', sel(ITEM_KINDS, 'Wondrous Item'));
-      const rarity = fEl(g, 'Rarity', sel(RARITIES.slice(1), 'uncommon'));
-      const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes'], ['by a spellcaster', 'By a spellcaster']], 'false'));
+      const kind = fEl(g, 'Item type', sel(ITEM_KINDS, I('item_type', 'Wondrous Item')));
+      const rarity = fEl(g, 'Rarity', sel(RARITIES.slice(1), I('rarity', 'uncommon')));
+      const attS = sel([['false', 'No'], ['true', 'Yes'], ['by a spellcaster', 'By a spellcaster']], 'false'); { const at = this.init.attunement; if (typeof at === 'string' && at) { if (![...attS.options].some(o => o.value === at)) { const o = document.createElement('option'); o.value = at; o.textContent = at.charAt(0).toUpperCase() + at.slice(1); attS.appendChild(o); } attS.value = at; } else if (at) attS.value = 'true'; }
+      const attune = fEl(g, 'Requires attunement', attS);
       g = sec('Charges & ownership');
-      const charges = fEl(g, 'Charges (optional)', inp('text', '', '7, regains 1d6+1 at dawn'));
+      const charges = fEl(g, 'Charges (optional)', inp('text', I('charges', ''), '7, regains 1d6+1 at dawn'));
       const holder = holderSel();
       g = sec('Effect');
-      const desc = fEl(g, 'What it does', ta('', 'Describe the effect. [[Links]] to conditions and spells work.', 6), true);
+      const desc = fEl(g, 'What it does', ta(I('desc', ''), 'Describe the effect. [[Links]] to conditions and spells work.', 6), true);
       const curse = fEl(g, 'Curse / quirk (optional)', ta('', '', 2), true);
       this.build = () => {
         const att = attune.value === 'false' ? false : attune.value === 'true' ? true : attune.value;
@@ -1570,24 +1577,25 @@ class ItemBuilderModal extends Modal {
         return { fm, body: '*' + kind.value + ', ' + rarity.value + (att ? ' (requires attunement' + (typeof att === 'string' ? ' ' + att : '') + ')' : '') + '*\n\n## Properties\n' + (desc.value || '') + (charges.value ? '\n\n**Charges:** ' + charges.value : '') + (curse.value ? '\n\n> [!secret] Curse / quirk\n> ' + curse.value : '') + '\n\n## History & lore\n' };
       };
     } else if (this.kind === 'spell') {
-      const level = fEl(g, 'Level', sel(Array.from({ length: 10 }, (_, i) => [String(i), i === 0 ? 'Cantrip' : 'Level ' + i]), '1'));
-      const school = fEl(g, 'School', sel(SCHOOLS, 'Evocation'));
+      const level = fEl(g, 'Level', sel(Array.from({ length: 10 }, (_, i) => [String(i), i === 0 ? 'Cantrip' : 'Level ' + i]), String(I('level', '1'))));
+      const school = fEl(g, 'School', sel(SCHOOLS, I('school', 'Evocation')));
       g = sec('Casting');
-      const time = fEl(g, 'Casting time', sel(['Action', 'Bonus Action', 'Reaction', '1 minute', '10 minutes', '1 hour', '8 hours'], 'Action'));
-      const trigger = fEl(g, 'Reaction trigger (if Reaction)', inp('text', '', 'which you take when…'));
-      const range = fEl(g, 'Range', inp('text', '60 feet'));
-      const dur = fEl(g, 'Duration', inp('text', 'Instantaneous'));
-      const conc = fEl(g, 'Concentration', sel([['false', 'No'], ['true', 'Yes']], 'false'));
-      const ritual = fEl(g, 'Ritual', sel([['false', 'No'], ['true', 'Yes']], 'false'));
+      const timeS = sel(['Action', 'Bonus Action', 'Reaction', '1 minute', '10 minutes', '1 hour', '8 hours', '12 hours', '24 hours'], 'Action'); { const t0 = I('casting_time', 'Action'); if (![...timeS.options].some(o => o.value === t0)) { const o = document.createElement('option'); o.value = o.textContent = t0; timeS.appendChild(o); } timeS.value = t0; }
+      const time = fEl(g, 'Casting time', timeS);
+      const trigger = fEl(g, 'Reaction trigger (if Reaction)', inp('text', I('trigger', ''), 'which you take when…'));
+      const range = fEl(g, 'Range', inp('text', I('range', '60 feet')));
+      const dur = fEl(g, 'Duration', inp('text', I('duration', 'Instantaneous')));
+      const conc = fEl(g, 'Concentration', sel([['false', 'No'], ['true', 'Yes']], I('concentration', false) ? 'true' : 'false'));
+      const ritual = fEl(g, 'Ritual', sel([['false', 'No'], ['true', 'Yes']], I('ritual', false) ? 'true' : 'false'));
       const cw = g.createDiv({ cls: 'dmc-f' }); cw.createEl('label', { text: 'Components' }); const cbox = cw.createDiv({ cls: 'dmc-checks' });
-      const comps = {}; ['V', 'S', 'M'].forEach(k => { const l = cbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); cb.checked = k !== 'M'; l.appendText(' ' + k); comps[k] = cb; });
-      const mat = fEl(g, 'Material component', inp('text', '', 'a pinch of ash'));
+      const comps = {}; ['V', 'S', 'M'].forEach(k => { const l = cbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); cb.checked = this.init.comps ? this.init.comps.includes(k) : k !== 'M'; l.appendText(' ' + k); comps[k] = cb; });
+      const mat = fEl(g, 'Material component', inp('text', I('material', ''), 'a pinch of ash'));
       g = sec('Classes');
       const kw = g.createDiv({ cls: 'dmc-f dmc-span2' }); kw.createEl('label', { text: 'Spell lists' }); const kbox = kw.createDiv({ cls: 'dmc-checks' });
-      const cls = {}; CASTER_CLASSES.forEach(k => { const l = kbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); l.appendText(' ' + k); cls[k] = cb; lpSafe(l); });
+      const cls = {}; CASTER_CLASSES.forEach(k => { const l = kbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); cb.checked = (this.init.classes || []).includes(k); l.appendText(' ' + k); cls[k] = cb; lpSafe(l); });
       g = sec('Effect');
-      const desc = fEl(g, 'Effect', ta('', 'What happens? e.g. *Dexterity Saving Throw* … *Failure:* 3d6 Fire damage.', 6), true);
-      const higher = fEl(g, 'Using a higher-level slot / cantrip upgrade', ta('', '', 2), true);
+      const desc = fEl(g, 'Effect', ta(I('desc', ''), 'What happens? e.g. *Dexterity Saving Throw* … *Failure:* 3d6 Fire damage.', 6), true);
+      const higher = fEl(g, 'Using a higher-level slot / cantrip upgrade', ta(I('higher', ''), '', 2), true);
       this.build = () => {
         const L = Number(level.value);
         const compStr = ['V', 'S', 'M'].filter(k => comps[k].checked).join(', ') + (comps.M.checked && mat.value ? ' (' + mat.value + ')' : '');
@@ -1673,6 +1681,7 @@ Object.assign(DMCodexPlugin.prototype, {
     button(bar, 'New gear', 'backpack', () => this.openItemBuilder('gear'));
     button(bar, 'New magic item', 'gem', () => this.openItemBuilder('item'));
     button(bar, 'Random armory', 'sparkles', () => new ArmoryGenModal(this).open());
+    button(bar, 'Import from image', 'scan-text', () => new ImportKindModal(this, ['weapon', 'armor', 'gear', 'item']).open());
     const owned = ['weapon', 'armor', 'gear', 'item'].flatMap(k => this.getNotes(k)).filter(f => String(this.fm(f).holder || '').trim());
     const inv = view.collapsible(body, 'inventory', 'Party inventory', 'users', owned.length);
     if (!owned.length) inv.createDiv({ cls: 'dmc-muted', text: 'Nothing assigned yet. Open any Armory item and run “Give this item to a character”, or set its holder property.' });
@@ -2062,6 +2071,7 @@ Object.assign(DMCodexPlugin.prototype, {
       const s = pick(r); this.app.workspace.openLinkText(s.f.path, sourcePath || '', true); new Notice('🎲 ' + s.name + ' (' + (s.level ? 'level ' + s.level : 'cantrip') + ')');
     });
     button(tools, 'New spell', 'plus', () => this.openItemBuilder('spell'));
+    button(tools, 'Import spell', 'scan-text', () => this.openItemBuilder('spell', { _importOpen: true }));
     button(tools, 'Spell generator', 'sparkles', () => new SpellGenModal(this).open());
     const table = wrap.createDiv({ cls: 'dmc-spell-table' });
     const filtered = () => this.spellRows().filter(r =>
@@ -3050,6 +3060,290 @@ Object.assign(DMCodexPlugin.prototype, {
     this._bannerBlocks = (this._bannerBlocks || []).filter(fn => fn.el && fn.el.isConnected);
     draw.el = el; this._bannerBlocks.push(draw);
     draw();
+  },
+});
+
+/** Upscale, grey and stretch contrast — Tesseract reads small, coloured statblock text much better this way. */
+async function prepareForOcr(blob) {
+  try {
+    const url = URL.createObjectURL(blob);
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
+    const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+    const scale = Math.max(1, Math.min(3, 2200 / Math.max(w0, 1)));
+    const c = document.createElement('canvas'); c.width = Math.round(w0 * scale); c.height = Math.round(h0 * scale);
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, c.width, c.height);
+    const d = g.getImageData(0, 0, c.width, c.height), p = d.data;
+    let lo = 255, hi = 0; const lum = new Uint8ClampedArray(p.length / 4);
+    for (let j = 0, q = 0; j < p.length; j += 4, q++) { const v = 0.299 * p[j] + 0.587 * p[j + 1] + 0.114 * p[j + 2]; lum[q] = v; }
+    const hist = new Array(256).fill(0); lum.forEach(v => hist[v]++);
+    let acc = 0; const n = lum.length; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc > n * 0.01) { lo = v; break; } }
+    acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc > n * 0.01) { hi = v; break; } }
+    const span = Math.max(1, hi - lo);
+    const dark = lum.reduce((a, v) => a + v, 0) / n < 110; // dark-mode screenshots: invert to dark-on-light
+    for (let j = 0, q = 0; j < p.length; j += 4, q++) { let v = (lum[q] - lo) * 255 / span; v = Math.max(0, Math.min(255, v)); if (dark) v = 255 - v; p[j] = p[j + 1] = p[j + 2] = v; }
+    g.putImageData(d, 0, 0); URL.revokeObjectURL(url);
+    return await new Promise(res => c.toBlob(b => res(b || blob), 'image/png'));
+  } catch (e) { return blob; }
+}
+
+/* ---- OCR: Tesseract.js, downloaded on first use (needs internet once; cached by the app afterwards) ---- */
+const OCR_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+let ocrLoading = null;
+function loadOcrEngine() {
+  if (window.Tesseract) return Promise.resolve(window.Tesseract);
+  if (ocrLoading) return ocrLoading;
+  ocrLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script'); s.src = OCR_SRC; s.async = true;
+    s.onload = () => window.Tesseract ? resolve(window.Tesseract) : reject(new Error('OCR engine did not load'));
+    s.onerror = () => { ocrLoading = null; reject(new Error('Could not download the OCR engine (are you offline?)')); };
+    document.head.appendChild(s);
+  });
+  return ocrLoading;
+}
+/** Read text from an image Blob/File. onProgress(0..1, status) */
+async function ocrImage(blob, onProgress) {
+  const T = await loadOcrEngine();
+  const worker = await T.createWorker('eng', 1, { logger: m => { if (onProgress && m && typeof m.progress === 'number') onProgress(m.progress, m.status || ''); } });
+  try {
+    try { await worker.setParameters({ preserve_interword_spaces: '1', tessedit_pageseg_mode: '3' }); } catch (e) {}
+    const r = await worker.recognize(await prepareForOcr(blob));
+    return (r && r.data && r.data.text) || '';
+  } finally { try { await worker.terminate(); } catch (e) {} }
+}
+
+/* ================================================================== */
+/* Import armory items and spells from an image or text                */
+/* ================================================================== */
+function cleanImportText(t) {
+  return String(t || '').replace(/\r/g, '').replace(/[‐‑‒–―−]/g, '-').replace(/[’‘`´]/g, "'").replace(/[“”„]/g, '"')
+    .replace(/[   ]/g, ' ').replace(/[ \t]+/g, ' ').replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl')
+    .replace(/(\w)-\n(\w)/g, '$1$2').replace(/\b(\d+)\s*d\s*(\d+)\b/g, '$1d$2')
+    .replace(/\bfl\.(?=\s|,|;|$)/g, 'ft.').replace(/\b[Il1]b\.(?=\s|,|;|$)/g, 'lb.');
+}
+function importTitle(s) { s = s.trim(); return /[a-z]/.test(s) ? s : s.toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\b(Of|The|And|In|On|A|An|Or)\b/g, (w, x, i) => i ? w.toLowerCase() : w); }
+/** Lines → paragraphs. Tesseract leaves blank lines between paragraphs; wrapped lines are re-joined. */
+function importParagraphs(lines) {
+  const out = []; let cur = '';
+  for (const l of lines) {
+    if (!l.trim()) { if (cur) out.push(cur), cur = ''; continue; }
+    const startsNew = cur && /[.!?:)"]$/.test(cur) && /^([A-Z][\w' -]{1,40}[.:]\s|[-•*]\s|\d+[.)]\s)/.test(l);
+    if (startsNew) { out.push(cur); cur = l; } else cur = cur ? cur + ' ' + l : l;
+  }
+  if (cur) out.push(cur);
+  return out.map(p => p.replace(/^[•*]\s*/, '- ').replace(/\s+/g, ' ').trim());
+}
+function boldLeads(p) { return p.replace(/^((?:[A-Z][\w'’-]*\s?){1,6}(?:\([^)]{1,30}\))?)\.\s/, (m, n) => '**' + n.trim() + '.** '); }
+const PARSE_RARITY = /\b(very rare|uncommon|common|rare|legendary|artifact)\b/i;
+
+function parseItemImport(raw, kind) {
+  const text = cleanImportText(raw);
+  const lines = text.split('\n').map(l => l.trim());
+  const nonEmpty = lines.filter(Boolean);
+  const r = { }; const found = [];
+  if (!nonEmpty.length) return { init: r, found, warnings: ['No text to read.'] };
+  r.name = importTitle(nonEmpty[0].replace(/[.:]$/, '')); found.push('name');
+  const flat = nonEmpty.join(' ');
+  const used = new Set([0]);
+  // the "Wondrous Item, Rare (Requires Attunement by a Wizard)" line
+  const isMeta = l => l.length < 110 && (PARSE_RARITY.test(l) || /requires attunement/i.test(l) || /^(weapon|armor|armour|ring|rod|staff|wand|potion|scroll|wondrous item)\b/i.test(l) || /^(simple|martial)\s+(melee|ranged)\b/i.test(l) || /^(light|medium|heavy)\s+armou?r$/i.test(l) || /^shield$/i.test(l) || GEAR_CATS.some(c => l.toLowerCase() === c.toLowerCase()) || /^(adventuring gear|tool|tools|artisan's tools|gaming set|musical instrument)$/i.test(l));
+  let metaIdx = -1; for (let i = 1; i < Math.min(4, nonEmpty.length); i++) { if (isMeta(nonEmpty[i])) metaIdx = i; else break; }
+  const metaAll = metaIdx > 0 ? nonEmpty.slice(1, metaIdx + 1).join(' ') : '';
+  const meta = metaAll;
+  let m;
+  if ((m = PARSE_RARITY.exec(meta || flat))) { r.rarity = m[1].toLowerCase(); found.push('rarity'); }
+  if ((m = /requires attunement(?:\s+(by [^)]+))?/i.exec(meta || flat))) { r.attunement = m[1] ? m[1].trim().toLowerCase() : true; found.push('attunement'); }
+  if ((m = /\+([123])\b/.exec(r.name + ' ' + meta)) || (m = /\+([123]) bonus to (?:attack and damage rolls|AC|Armor Class)/i.exec(flat))) { r.magic_bonus = Number(m[1]); found.push('magic bonus'); }
+  if ((m = /\b(\d[\d,]*\s*(?:gp|sp|cp|ep|pp))\b/i.exec(flat))) { r.cost = m[1].replace(/\s+/g, ' ').replace(/(gp|sp|cp|ep|pp)$/i, x => x.toLowerCase()); found.push('cost'); }
+  if ((m = /\b(\d+(?:[./]\d+)?\s*lb\.?)/i.exec(flat))) { r.weight = m[1].replace(/\s*lb\.?$/i, ' lb.'); found.push('weight'); }
+  if (kind === 'item') {
+    const k = (meta.match(/^(Wondrous Item|Weapon|Armor|Armour|Ring|Rod|Staff|Wand|Potion|Scroll)/i) || [])[1];
+    if (k) { r.item_type = k.toLowerCase() === 'wondrous item' ? 'Wondrous Item' : importTitle(k).replace('Armour', 'Armor'); found.push('item type'); }
+    if ((m = /\b(?:has|with)\s+(\d+)\s+charges\b/i.exec(flat))) { const rg = /regains?\s+(\d+d\d+(?:\s*\+\s*\d+)?|\d+|all)\b[^.]*?\b(daily at dawn|at dawn|at dusk|daily|after a long rest)/i.exec(flat); r.charges = m[1] + (rg ? ', regains ' + rg[1].replace(/\s+/g, ' ') + ' ' + rg[2].replace(/^daily /i, '') : ''); found.push('charges'); }
+  }
+  if (kind === 'weapon') {
+    if ((m = /\b(\d+d\d+|1)\s+(Acid|Bludgeoning|Cold|Fire|Force|Lightning|Necrotic|Piercing|Poison|Psychic|Radiant|Slashing|Thunder)\b/i.exec(flat))) { r.damage = m[1]; r.damage_type = importTitle(m[2]); found.push('damage'); }
+    r.props = WEAPON_PROPS.filter(p => new RegExp('\\b' + p.replace('-', '[- ]?') + '\\b', 'i').test(flat));
+    if (r.props.length) found.push('properties');
+    const ms = MASTERIES.find(x => new RegExp('\\bmastery\\W{0,3}' + x + '\\b|\\b' + x + '\\b(?=[^.]*\\bmastery)', 'i').test(flat)) || MASTERIES.find(x => new RegExp('\\b' + x + '\\b').test(flat));
+    if (ms) { r.mastery = ms; found.push('mastery'); }
+    if ((m = /\((?:range\s*)?(\d+\/\d+)\)/i.exec(flat))) r.range = m[1];
+    if ((m = /Versatile\s*\((\d+d\d+)\)/i.exec(flat))) r.versatile = m[1];
+    const ranged = r.props.includes('Ammunition') || /\branged\b/i.test(flat);
+    r.category = (/\bmartial\b/i.test(flat) ? 'Martial' : /\bsimple\b/i.test(flat) ? 'Simple' : 'Martial') + (ranged ? ' Ranged' : ' Melee');
+  }
+  if (kind === 'armor') {
+    if (/\bshield\b/i.test(r.name + ' ' + meta)) r.category = 'Shield';
+    else if ((m = /\b(light|medium|heavy)\s+armou?r\b/i.exec(flat))) r.category = importTitle(m[1]);
+    if ((m = /(?:Armou?r Class|\bAC)\)?\s*:?\s*(\d{1,2})/i.exec(flat))) { r.base_ac = Number(m[1]); found.push('AC'); }
+    if (!r.category && r.base_ac) r.category = /max 2/i.test(flat) ? 'Medium' : /\+\s*Dex/i.test(flat) ? 'Light' : 'Heavy';
+    if ((m = /\b(?:Str(?:ength)?)\s*(\d{2})\b/i.exec(flat))) r.strength = m[1];
+    if (/stealth[^.]{0,20}disadvantage|disadvantage[^.]{0,30}stealth/i.test(flat)) r.stealth = 'Disadvantage';
+  }
+  if (kind === 'gear') {
+    const g = GEAR_CATS.find(c => new RegExp('\\b' + c.split(' ')[0], 'i').test(meta || nonEmpty.slice(1, 3).join(' ')));
+    if (g) r.category = g;
+  }
+  // description: everything after the meta line(s), minus table-ish stat lines
+  const start = Math.max(1, metaIdx + 1);
+  const rest = lines.slice(lines.indexOf(nonEmpty[start - 1]) + 1);
+  const isStatLine = l => /^(cost|weight|damage|properties|mastery|armou?r class|ac|strength|stealth|category)\b\s*:?/i.test(l) || /^\d[\d,]*\s*(gp|sp|cp)\b/i.test(l);
+  const statScore = p => [/\b\d+d\d+\b/, /\blb\./i, /\b\d+\s*gp\b/i, new RegExp('\\b(' + WEAPON_PROPS.concat(MASTERIES).join('|') + ')\\b')].filter(re => re.test(p)).length;
+  const paras = importParagraphs(rest.filter(l => !isStatLine(l))).filter(p => !(p.length < 220 && statScore(p) >= 3));
+  const curse = paras.findIndex(p => /^\**curse\b/i.test(p));
+  if (kind === 'item' && curse >= 0) { r.curse = paras.splice(curse).join('\n\n').replace(/^\**curse\.?\**\s*/i, ''); found.push('curse'); }
+  if (paras.length) { r.desc = paras.map(boldLeads).join('\n\n'); found.push('description'); }
+  const warnings = [];
+  if (kind === 'weapon' && !r.damage) warnings.push('No damage found — set damage dice and type.');
+  if (kind === 'armor' && !r.base_ac) warnings.push('No Armor Class found.');
+  if ((kind === 'item') && !r.rarity) warnings.push('No rarity found.');
+  return { init: r, found, warnings };
+}
+
+function parseSpellImport(raw) {
+  const text = cleanImportText(raw);
+  const lines = text.split('\n').map(l => l.trim());
+  const nonEmpty = lines.filter(Boolean);
+  const r = {}; const found = [];
+  if (!nonEmpty.length) return { init: r, found, warnings: ['No text to read.'] };
+  r.name = importTitle(nonEmpty[0]); found.push('name');
+  const head = nonEmpty.slice(1, 9).join('\n');
+  let m;
+  const schoolRe = new RegExp('\\b(' + SCHOOLS.join('|') + ')\\b', 'i');
+  if ((m = schoolRe.exec(head))) { r.school = m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(); found.push('school'); }
+  if (/\bcantrip\b/i.test(head)) r.level = 0;
+  else if ((m = /\bLevel\s*(\d)\b/i.exec(head)) || (m = /\b(\d)(?:st|nd|rd|th)[- ]level\b/i.exec(head))) r.level = Number(m[1]);
+  if (r.level != null) found.push('level');
+  if (/\britual\b/i.test(head)) r.ritual = true;
+  const lab = (re) => { const x = re.exec(text); return x ? x[1].replace(/\s+/g, ' ').trim() : ''; }; // labels are anchored to the start of a line
+  let ct = lab(/^Casting Time\s*:?\s*([^\n]+)/im);
+  if (ct) {
+    found.push('casting time');
+    if (/or ritual/i.test(ct)) { r.ritual = true; ct = ct.replace(/\s*,?\s*or ritual/i, ''); }
+    const low = ct.toLowerCase().replace(/^1\s+/, '');
+    if (/^bonus action/.test(low)) r.casting_time = 'Bonus Action';
+    else if (/^reaction/.test(low)) { r.casting_time = 'Reaction'; r.trigger = ct.replace(/^1?\s*reaction\s*,?\s*/i, ''); }
+    else if (/^action/.test(low)) r.casting_time = 'Action';
+    else r.casting_time = ct.replace(/^(\d+)\s+(minute|hour)s?$/i, (x, n, u) => n + ' ' + u.toLowerCase() + (n === '1' ? '' : 's'));
+  }
+  const rg = lab(/^Range\s*:?\s*([^\n]+)/im); if (rg) { r.range = rg; found.push('range'); }
+  const cp = lab(/^Components?\s*:?\s*([^\n]+(?:\n(?![A-Z][a-z]+\s*:)[^\n]*\))?)/im);
+  if (cp) {
+    r.comps = ['V', 'S', 'M'].filter(k => new RegExp('(^|[\\s,])' + k + '(?=[\\s,(]|$)').test(cp));
+    if ((m = /\(([^)]+)\)/.exec(cp))) r.material = m[1].trim();
+    found.push('components');
+  }
+  let du = lab(/^Duration\s*:?\s*([^\n]+)/im);
+  if (du) { if (/concentration/i.test(du)) { r.concentration = true; du = du.replace(/^Concentration,?\s*(up to\s*)?/i, ''); } r.duration = importTitle(du.charAt(0)) + du.slice(1); found.push('duration'); }
+  // classes: 2024 "(Sorcerer, Wizard)" on the level line; 2014 "Classes: …"
+  const clsSrc = lab(/^Classes?\s*:?\s*([^\n]+)/im) + ' ' + ((/\(([^)]+)\)/.exec(nonEmpty.slice(1, 4).join(' ')) || [])[1] || '');
+  r.classes = CASTER_CLASSES.filter(c => new RegExp('\\b' + c + '\\b', 'i').test(clsSrc));
+  if (r.classes.length) found.push('classes');
+  // body: after the last header label line
+  let bodyStart = 1;
+  nonEmpty.forEach((l, i) => { if (i < 12 && (/^(casting time|range|components?|duration|classes?|level\s*\d|\d(st|nd|rd|th)[- ]level)\b/i.test(l) || (i <= 2 && schoolRe.test(l) && l.length < 80))) bodyStart = i + 1; });
+  const bodyLines = lines.slice(lines.indexOf(nonEmpty[bodyStart - 1]) + 1);
+  const paras = importParagraphs(bodyLines);
+  const hi = paras.findIndex(p => /^(at higher levels|using a higher-level spell slot|cantrip upgrade)\b/i.test(p.replace(/^\*+/, '')));
+  if (hi >= 0) { r.higher = paras.splice(hi).join(' ').replace(/^\**(at higher levels|using a higher-level spell slot|cantrip upgrade)\.?\**\s*/i, ''); found.push('higher levels'); }
+  if (paras.length) {
+    r.desc = paras.map(p => p.replace(/(^|\s)((?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) Saving Throw|Failure|Success|Hit|Miss)(:)/g, '$1*$2$3*')).join('\n\n');
+    found.push('effect');
+  }
+  const warnings = [];
+  if (r.level == null) warnings.push('No spell level found.');
+  if (!r.school) warnings.push('No school found.');
+  if (!ct) warnings.push('No casting time found.');
+  return { init: r, found, warnings };
+}
+
+class ImportKindModal extends Modal {
+  constructor(plugin, kinds) { super(plugin.app); this.plugin = plugin; this.kinds = kinds || ['weapon', 'armor', 'gear', 'item', 'spell']; }
+  onOpen() {
+    const c = this.contentEl; c.addClass('dmc-modal');
+    c.createEl('h3', { text: 'Import from an image or text' });
+    c.createDiv({ cls: 'dmc-muted', text: 'What are you importing?', attr: { style: 'margin-bottom:8px' } });
+    const r = c.createDiv({ cls: 'dmc-row dmc-wrap' });
+    const L = { weapon: ['Weapon', 'sword'], armor: ['Armor', 'shield'], gear: ['Gear', 'backpack'], item: ['Magic item', 'gem'], spell: ['Spell', 'wand-sparkles'] };
+    this.kinds.forEach(k => button(r, L[k][0], L[k][1], () => { this.close(); this.plugin.openItemBuilder(k, { _importOpen: true }); }));
+  }
+  onClose() { this.contentEl.empty(); }
+}
+
+class OcrConsentModal extends Modal {
+  constructor(app, done) { super(app); this.done = done; this.answer = false; }
+  onOpen() {
+    const c = this.contentEl; c.createEl('h3', { text: 'Read text from images?' });
+    c.createEl('p', { text: 'To read text from a picture, DM Codex downloads the free Tesseract OCR engine and English language data (about 15 MB) from cdn.jsdelivr.net the first time. After that it is cached.' });
+    c.createEl('p', { cls: 'dmc-muted', text: 'Your image is read on this device and is not uploaded anywhere. You can turn this off in Settings → DM Codex.' });
+    const r = c.createDiv({ cls: 'dmc-row' });
+    button(r, 'Download & read', 'download', () => { this.answer = true; this.close(); }, 'mod-cta');
+    button(r, 'Not now', null, () => this.close());
+  }
+  onClose() { this.contentEl.empty(); this.done(this.answer); }
+}
+
+Object.assign(ItemBuilderModal.prototype, {
+  renderImport(form) {
+    const p = this.plugin, kind = this.kind;
+    const noun = { weapon: 'weapon', armor: 'armor', gear: 'gear', item: 'magic item', spell: 'spell' }[kind];
+    const st = this.importState || (this.importState = { blob: null, url: '', name: '', text: '', msg: '', msgCls: '', open: !!(this.init && this.init._importOpen) });
+    const d = form.createEl('details', { cls: 'dmc-import' }); d.open = st.open;
+    d.addEventListener('toggle', () => { st.open = d.open; });
+    const sum = d.createEl('summary'); setIcon(sum.createSpan({ cls: 'dmc-btn-icon' }), 'scan-text'); sum.appendText(' Import from an image or text');
+    d.createDiv({ cls: 'dmc-muted', text: 'Use a picture of a ' + noun + ' (screenshot, photo of a book page or item card) or paste its text, then fill the form below. Check the result — OCR is good but not perfect.' });
+    const drop = d.createDiv({ cls: 'dmc-drop' });
+    const status = d.createDiv({ cls: 'dmc-import-status' });
+    const area = d.createEl('textarea', { cls: 'dmc-ta dmc-import-text', attr: { rows: 6, placeholder: 'Paste the ' + noun + '\'s text here, or read it from the image above.' } });
+    area.value = st.text; area.addEventListener('input', () => { st.text = area.value; });
+    const foot = d.createDiv({ cls: 'dmc-row dmc-wrap' });
+    const say = (msg, cls) => { st.msg = msg; st.msgCls = cls || ''; status.empty(); if (msg) status.createDiv({ cls: cls || 'dmc-muted', text: msg }); };
+    let readBtn;
+    const setImg = (blob, name) => { st.blob = blob; st.name = name || blob.name || 'image'; st.url = URL.createObjectURL(blob); say(''); drawDrop(); };
+    const drawDrop = () => {
+      drop.empty(); drop.toggleClass('has-image', !!st.url);
+      if (st.url) {
+        drop.createEl('img', { cls: 'dmc-drop-img' }).src = st.url;
+        const side = drop.createDiv({ cls: 'dmc-drop-side' });
+        side.createDiv({ cls: 'dmc-drop-name', text: st.name || 'image' });
+        readBtn = button(side, 'Read text from image', 'scan-text', () => this.runOcr(st, area, say, readBtn), 'mod-cta');
+        button(side, 'Different image', 'image', async () => { const fs = await chooseImageFiles(false); if (fs[0]) setImg(fs[0]); });
+        button(side, 'Remove', 'x', () => { st.blob = null; st.url = ''; st.name = ''; drawDrop(); });
+      } else {
+        const ic = drop.createDiv({ cls: 'dmc-drop-ic' }); setIcon(ic, 'image-plus');
+        drop.createDiv({ text: 'Drop or paste a picture here' });
+        const r = drop.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'justify-content:center' } });
+        button(r, 'Choose image…', 'upload', async () => { const fs = await chooseImageFiles(false); if (fs[0]) setImg(fs[0]); });
+        button(r, 'From vault…', 'image', () => new ImageSuggestModal(this.app, async f => { const buf = await this.app.vault.readBinary(f); setImg(new Blob([buf], { type: 'image/' + (f.extension === 'jpg' ? 'jpeg' : f.extension) }), f.name); }).open());
+      }
+    };
+    makeImageDropTarget(drop, fs => setImg(fs[0]));
+    drawDrop(); say(st.msg, st.msgCls);
+    button(foot, 'Fill the form', 'wand', () => {
+      if (!st.text.trim()) { say(st.url ? 'Click “Read text from image” first, or paste the text.' : 'Paste text or add an image first.', 'dmc-warn'); return; }
+      const res = kind === 'spell' ? parseSpellImport(st.text) : parseItemImport(st.text, kind);
+      const keep = { holder: this.init.holder, _importOpen: true };
+      this.init = Object.assign({}, res.init, keep);
+      st.msg = 'Filled from the import: ' + res.found.join(', ') + '.' + (res.warnings.length ? ' ⚠ ' + res.warnings.join(' ') : ' Check the details, then save.');
+      st.msgCls = res.warnings.length ? 'dmc-warn' : 'dmc-ok'; st.open = true;
+      this.contentEl.empty(); this.onOpen();
+    }, 'mod-cta');
+    button(foot, 'Clear', 'x', () => { st.text = ''; area.value = ''; say(''); });
+  },
+  async runOcr(st, area, say, b) {
+    const p = this.plugin, sbp = this.app.plugins && this.app.plugins.plugins && this.app.plugins.plugins['dm-statblocks'];
+    if (p.settings.ocrAllowed !== true && !(sbp && sbp.settings && sbp.settings.ocrAllowed === true)) {
+      const ok = await new Promise(res => new OcrConsentModal(this.app, res).open());
+      if (!ok) { say('OCR is off. You can still paste the text below.'); return; }
+      p.settings.ocrAllowed = true; await p.saveSettings();
+    }
+    if (b) b.disabled = true;
+    say('Loading the OCR engine…');
+    try {
+      const text = await ocrImage(st.blob, (pr, status) => say((/recogniz/i.test(status) ? 'Reading text… ' : 'Loading the OCR engine… ') + Math.round(pr * 100) + '%'));
+      st.text = text.trim(); area.value = st.text;
+      say(st.text ? 'Text read from the image — fix anything obvious, then click “Fill the form”.' : 'No text found in that image. Try a sharper, straighter picture, or paste the text.', st.text ? 'dmc-ok' : 'dmc-warn');
+    } catch (e) { say(e.message + ' — you can paste the text instead.', 'dmc-warn'); }
+    finally { if (b) b.disabled = false; }
   },
 });
 
