@@ -45,7 +45,7 @@ j('.obsidian/community-plugins.json', ["dm-codex", "dm-statblocks"])
 j('.obsidian/templates.json', {"folder": "Templates", "dateFormat": "YYYY-MM-DD"})
 j('.obsidian/types.json', {"types": {
     "session_number": "number", "level": "number", "ac": "number", "hp_max": "number", "init_bonus": "number",
-    "passive_perception": "number", "date": "date", "created": "date", "players": "multitext", "npcs": "multitext",
+    "passive_perception": "number", "dndbeyond": "text", "date": "date", "created": "date", "players": "multitext", "npcs": "multitext",
     "locations": "multitext", "tags": "tags", "aliases": "aliases", "environment": "multitext"}})
 now = int(time.time() * 1000)
 j('.obsidian/bookmarks.json', {"items": [
@@ -82,6 +82,8 @@ locations: []
 npcs: []
 prev: "{{prev}}"
 next: ""
+prep: ""
+arc: ""
 tags: [session]
 ---
 # {{title}}
@@ -89,9 +91,18 @@ tags: [session]
 > [!info] Navigation
 > Previous: {{prev}} · [[Home]] · Use the `next` property to jump forward.
 
+```session-link
+```
+
 ## Recap
 > [!read-aloud] Last time…
 >
+
+## Open threads from earlier sessions
+```threads
+scope: earlier
+compact: true
+```
 
 ## Strong start
 *How does the session open with action or tension?*
@@ -127,10 +138,14 @@ tags: [session]
 T['Session Prep'] = '''---
 type: prep
 for_session: ""
+arc: ""
 date: {{date}}
 tags: [prep]
 ---
 # {{title}}
+
+```session-link
+```
 
 > [!tip] Eight-step prep
 > 1. Review the characters  2. Strong start  3. Potential scenes  4. Secrets & clues  5. Fantastic locations  6. Important NPCs  7. Relevant monsters  8. Magic item rewards
@@ -171,6 +186,7 @@ T['Player Character'] = '''---
 type: player
 character: "{{title}}"
 player: ""
+dndbeyond: ""
 species: ""
 class: ""
 subclass: ""
@@ -189,6 +205,9 @@ tags: [pc]
 > [!npc]- At a glance
 > **Player:** · **Species/Class:** · **Background:**
 > **Languages:** · **Notable senses:**
+
+```dndbeyond
+```
 
 ## Concept
 *One sentence: who are they?*
@@ -260,6 +279,14 @@ monster: Bandit
 rename: "{{title}}"
 ```
 
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
+
 ## Appearances
 ```dm-list
 type: session
@@ -328,6 +355,14 @@ title: Encounter here
 6: A local asks for help (roll a [[Generators|side quest]])
 ```
 
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
+
 ## Session history
 ```dm-list
 type: session
@@ -362,6 +397,14 @@ tags: [quest]
 ## Resolution
 *What happens if they succeed? Fail? Ignore it?*
 
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
+
 ## Mentioned in
 ```dm-list
 where: any
@@ -384,6 +427,14 @@ tags: [faction]
 ## Methods
 
 ## Resources
+
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
 
 ## Members
 ```dm-list
@@ -437,6 +488,33 @@ tags: [idea]
 ## Where it could show up
 -
 '''
+T['Campaign'] = '''---
+type: campaign
+setting: ""
+tone: ""
+system: "D&D 2024"
+dndbeyond: ""
+tags: [campaign]
+---
+# {{title}}
+
+```dndbeyond
+```
+
+*This note feeds the campaign summary card on the DM Codex dashboard (Overview and Ideas & Arcs tabs).*
+
+## Premise
+*Two or three sentences: who the heroes are, what's at stake, what makes this campaign different.*
+
+## Where things stand
+*Update this after each session: the current situation in a few lines.*
+
+## Themes
+- 
+
+## The big threat
+- 
+'''
 T['Story Arc'] = '''---
 type: arc
 status: planned
@@ -453,6 +531,23 @@ tags: [arc]
 1.
 2.
 3.
+
+## Sessions in this arc
+```dm-list
+type: session
+where: arc
+sort: session_number
+fields: [session_number, date, status]
+empty: No sessions yet — set the arc from a session's Arc button.
+```
+
+## Prep notes in this arc
+```dm-list
+type: prep
+where: arc
+fields: [for_session, date]
+empty: No prep notes in this arc yet.
+```
 
 ## Ideas feeding this arc
 ```dm-list
@@ -688,6 +783,13 @@ fields: [cr, creature_type, status]
 empty: No villains yet — click Monster/Villain above and set Kind to Villain.
 ```
 
+## Open threads
+```threads
+filter: open
+limit: 8
+compact: true
+```
+
 ## Story arcs
 ```dm-list
 type: arc
@@ -794,6 +896,12 @@ title: Weather
 - **CR check** — the builder reads the stats you've entered (effective HP after resistances and Legendary Resistance, AC, damage per round over three rounds with recharge abilities, attack bonus or save DC), works out a **defensive** and **offensive** CR, and compares their average with the CR you chose: ✓ when it's within one step, ▲/▼ with a one-click **Use CR X** when it isn't. *Apply typical AC/HP* goes the other way and fits the stats to your chosen CR.
 - **Random monster** — shows the **suggested CR** for your settings as you change them (and in CR mode, what difficulty that CR is for your party and which CR would make a Moderate fight). It asks for **party level, party size and difficulty** (Low / Moderate / High) or a CR, how many monsters, creature type, role (brute, skirmisher, controller, leader) and boss (legendary actions). It builds a full statblock you can tweak in the builder, save to the Bestiary, or send to the tracker.
 - **Encounters** — the **encounter builder** (shield icon in the ribbon, *DM Statblocks: Build a new encounter*, or the Encounters tab) shows live 2024 difficulty against your party. Add monsters from the Bestiary, click **Suggest encounter** (filters by environment), or **Generate new monster** to fill the remaining budget. Save as an encounter note in `Campaign/Encounters` (linked to a place and session), insert into the current note, or run it now. Encounter notes show up on [[Home]], on their place's page, and in the dashboard.
+- **Session ↔ prep** — the bar under a session's navigation shows its prep note (and a prep's bar shows its session). **Create prep note** / **Create session note** makes the partner and links both ways (`prep` on the session, `for_session` on the prep); **Link existing** pairs notes you already have. Encounters planned in the prep are added to the session when they're linked. Also available as *DM Codex: Create linked prep … or session …*.
+- **Threads & follow-ups** — every checklist item under *Threads & follow-ups* in your session notes is collected on the dashboard's **Threads** tab: filter **Open / Done / All**, search, tick items off (the tick is saved in the session note), or **Add thread** to a session. Open threads also appear on [[Home]], as a count on the campaign summary, and in a box at the top of each new session (*Open threads from earlier sessions*). Use a ` ```threads``` ` block anywhere (`filter: open|done|all`, `scope: earlier`, `limit: 8`).
+- **Notes & links on threads** — on the Threads tab (or any threads box), each thread has a **note** button to add a short note (saved as an indented bullet under the thread in the session) and a **link** button to connect it to an NPC, place, quest, faction or any other note. NPC, Place, Quest and Faction notes have a **Threads** section listing every thread that mentions them.
+- **D&D Beyond** — character notes and the Campaign Summary have a `dndbeyond` property and an **Add D&D Beyond link** button. Once set it becomes **Open on D&D Beyond**, and the link also appears on the Party tab, the Overview party card and the campaign summary card.
+- **Campaign summary** — the card at the top of the dashboard's **Overview** and **Ideas & Arcs** tabs shows the *Premise* and *Where things stand* sections of your **Campaign Summary** note, plus live facts: current arc, sessions played, last and next session, party, open quests, villains and planned encounters. Click a fact to jump to it; **Edit summary** opens the note.
+- **Story arcs** — the same bar has **Arc**: click **Set arc** to put a session (and its linked prep) in a story arc. New sessions inherit the previous session's arc, and a prep or session you create from its partner inherits it too. Each arc note lists **Sessions in this arc** and **Prep notes in this arc**.
 - **Encounters in sessions and prep** — every Session and Session Prep note has an **Encounters** panel. Click **Add existing** to link a saved encounter, **New encounter** to build one (it's saved to the Encounters tab and linked to the session or prep automatically), or **Suggest** to start from a suggestion. Each encounter in the panel can be **Run** in the tracker, marked **used**, **edited** or **unlinked** (unlinking keeps the encounter). For older session notes, run *DM Statblocks: Insert encounters panel*. **Delete** an encounter from the trash icon on the dashboard's Encounters tab, the **Delete encounter** button on the encounter itself (or in its editor), or *DM Statblocks: Delete an encounter*. It goes to the trash, so it can be recovered. An encounter block inside a session note has **Remove** instead, which deletes just that block.
 
 ## Armory

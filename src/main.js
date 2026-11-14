@@ -22,6 +22,7 @@ function setIcon(el, name) {
 
 const VIEW_TYPE = 'dm-codex-dashboard';
 const DELETABLE_TYPES = ['encounter'];
+const COLUMN_LABELS = { dndbeyond: 'D&D Beyond', hp_max: 'HP max', passive_perception: 'Passive Perc.', session_number: '#', for_session: 'For session', init_bonus: 'Init' };
 
 /* ------------------------------------------------------------------ */
 /* Note types                                                          */
@@ -43,12 +44,13 @@ const TYPES = {
   prep:    { label: 'Session Prep', plural: 'Prep', icon: 'clipboard-list', folder: 'Planning/Session Prep' },
   monster: { label: 'Monster', plural: 'Bestiary', icon: 'skull', folder: 'Bestiary' },
   encounter: { label: 'Encounter', plural: 'Encounters', icon: 'swords', folder: 'Campaign/Encounters' },
+  campaign: { label: 'Campaign Summary', plural: 'Campaign', icon: 'book-open', folder: 'Campaign' },
   spell: { label: 'Spell', plural: 'Spells', icon: 'wand-sparkles', folder: 'Rules 2024/Spells' },
 };
 
 const TEMPLATE_FILES = {
   session: 'Session', player: 'Player Character', quest: 'Quest', npc: 'NPC', place: 'Place',
-  faction: 'Faction', item: 'Item', idea: 'Idea', arc: 'Story Arc', prep: 'Session Prep', monster: 'Monster', encounter: 'Encounter', spell: 'Spell', weapon: 'Weapon', armor: 'Armor', gear: 'Gear',
+  faction: 'Faction', item: 'Item', idea: 'Idea', arc: 'Story Arc', prep: 'Session Prep', monster: 'Monster', encounter: 'Encounter', spell: 'Spell', campaign: 'Campaign', weapon: 'Weapon', armor: 'Armor', gear: 'Gear',
 };
 
 const DEFAULT_SETTINGS = {
@@ -354,6 +356,7 @@ const TABS = [
   ['overview', 'Overview', 'castle'],
   ['idea', 'Ideas & Arcs', 'lightbulb'],
   ['session', 'Sessions', 'scroll-text'],
+  ['threads', 'Threads', 'list-checks'],
   ['player', 'Party', 'users'],
   ['npc', 'NPCs', 'user-round'],
   ['place', 'Places', 'map-pin'],
@@ -369,8 +372,8 @@ const TABS = [
 ];
 
 const COLUMNS = {
-  session: ['session_number', 'date', 'status'],
-  player: ['player', 'species', 'class', 'level', 'ac', 'hp_max', 'passive_perception'],
+  session: ['session_number', 'date', 'status', 'arc', 'prep'],
+  player: ['player', 'species', 'class', 'level', 'ac', 'hp_max', 'passive_perception', 'dndbeyond'],
   npc: ['role', 'location', 'faction', 'attitude', 'status'],
   place: ['place_type', 'region', 'parent'],
   quest: ['status', 'giver', 'location', 'reward'],
@@ -381,7 +384,7 @@ const COLUMNS = {
   gear: ['category', 'cost', 'weight', 'quantity', 'holder'],
   idea: ['status', 'category'],
   arc: ['status', 'act'],
-  prep: ['for_session', 'date'],
+  prep: ['for_session', 'arc', 'date'],
   monster: ['cr', 'creature_type', 'villain', 'environment'],
   encounter: ['difficulty', 'xp', 'location', 'session', 'status'],
   spell: ['level', 'school', 'casting_time', 'range', 'concentration', 'classes'],
@@ -412,7 +415,12 @@ class DashboardView extends ItemView {
     const body = el.createDiv({ cls: 'dmc-body' });
     if (this.tab === 'overview') this.renderOverview(body);
     else if (this.tab === 'tools') this.renderTools(body);
-    else if (this.tab === 'idea') { this.renderList(body, 'idea'); this.renderList(body, 'arc'); }
+    else if (this.tab === 'idea') { this.plugin.renderCampaignSummary(body, this); this.renderList(body, 'idea'); this.renderList(body, 'arc'); }
+    else if (this.tab === 'threads') {
+      const c = body.createDiv({ cls: 'dmc-card' }); const h = c.createEl('h4'); setIcon(h.createSpan({ cls: 'dmc-btn-icon' }), 'list-checks'); h.appendText(' Threads & follow-ups');
+      c.createDiv({ cls: 'dmc-muted', text: 'Every checklist item under “Threads & follow-ups” in your session notes. Ticking one here ticks it in the session.', attr: { style: 'margin-bottom:8px' } });
+      this.plugin.renderThreads(c, '', { filter: this.threadFilter || 'open', onFilter: k => { this.threadFilter = k; } });
+    }
     else if (this.tab === 'session') { this.renderList(body, 'session'); this.renderList(body, 'prep'); }
     else if (this.tab === 'faction') { this.renderList(body, 'faction'); }
     else if (this.tab === 'armory') { this.plugin.renderArmory(body, this); ['weapon', 'armor', 'gear', 'item'].forEach(k => this.renderList(body, k, { collapsible: true })); }
@@ -514,6 +522,7 @@ class DashboardView extends ItemView {
       up.createDiv({ text: 'DM Vault content v' + p.availableContentVersion + ' is ready to install. New notes are added and unedited ones refreshed — anything you\'ve edited is kept.' });
       button(up, 'Review & update', 'download', () => p.runContentUpdate(), 'mod-cta');
     }
+    p.renderCampaignSummary(body, this);
     this.renderQuickCreate(body.createDiv({ cls: 'dmc-card dmc-quick' }));
 
     const stats = body.createDiv({ cls: 'dmc-stats' });
@@ -544,6 +553,7 @@ class DashboardView extends ItemView {
       this.link(r, f);
       r.createSpan({ cls: 'dmc-muted', text: ' — ' + [fm.species, fm.class, fm.level ? 'Lv ' + fm.level : ''].filter(Boolean).join(' ') });
       r.createSpan({ cls: 'dmc-pill', text: 'AC ' + (fm.ac ?? '?') }); r.createSpan({ cls: 'dmc-pill', text: 'PP ' + (fm.passive_perception ?? '?') });
+      if (fm.dndbeyond && /^https?:\/\//i.test(String(fm.dndbeyond).trim())) { const a = r.createEl('a', { cls: 'external-link dmc-ddb-mini', text: 'DDB ↗' }); a.setAttr('href', String(fm.dndbeyond).trim()); a.setAttr('target', '_blank'); a.setAttr('title', 'Open on D&D Beyond'); }
     });
     // Open quests
     const c3 = grid.createDiv({ cls: 'dmc-card' }); c3.createEl('h4', { text: 'Open quests' });
@@ -584,7 +594,7 @@ class DashboardView extends ItemView {
       const cols = COLUMNS[type] || [];
       const t = tableWrap.createEl('table', { cls: 'dmc-table' });
       const tr = t.createEl('thead').createEl('tr'); tr.createEl('th', { text: 'Name' });
-      cols.forEach(c => tr.createEl('th', { text: c.replace(/_/g, ' ') }));
+      cols.forEach(c => tr.createEl('th', { text: COLUMN_LABELS[c] || c.replace(/_/g, ' ') }));
       const deletable = DELETABLE_TYPES.includes(type);
       if (deletable) tr.createEl('th', { cls: 'dmc-col-actions' });
       const tb = t.createEl('tbody');
@@ -599,6 +609,7 @@ class DashboardView extends ItemView {
             if (i) td.appendText(', ');
             if (dest) this.link(td, dest, l); else td.appendText(l);
           });
+          else if (typeof v === 'string' && /^https?:\/\//i.test(v.trim())) { const a = td.createEl('a', { cls: 'external-link', text: /dndbeyond\.com/i.test(v) ? 'D&D Beyond ↗' : 'Open ↗' }); a.setAttr('href', v.trim()); a.setAttr('target', '_blank'); a.setAttr('rel', 'noopener'); }
           else td.setText(stripLinks(v));
         });
         if (deletable) {
@@ -690,6 +701,32 @@ class DMCodexPlugin extends Plugin {
     }
     this.addCommand({ id: 'give-item', name: 'Give this item to a character…', callback: () => { const f = this.app.workspace.getActiveFile(); if (f) this.giveItem(f); } });
     this.addCommand({ id: 'open-armory', name: 'Open armory', callback: () => { this.settings.dashboardTab = 'armory'; this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l => { l.view.tab = 'armory'; l.view.render(); }); this.activateView(); } });
+    this.registerMarkdownCodeBlockProcessor('threads', (src, el, ctx) => {
+      el.addClass('dmc-block'); let o = {}; try { o = parseYaml(src) || {}; } catch (e) {}
+      const draw = this.renderThreads(el, ctx.sourcePath, { filter: o.filter, scope: o.scope, mentions: o.mentions, limit: Number(o.limit) || 0, compact: o.compact === true || o.compact === 'true' });
+      const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+      const refresh = obsidian.debounce ? obsidian.debounce(() => draw(), 250, true) : draw;
+      child.registerEvent(this.app.metadataCache.on('changed', f => { if (this.fm(f).type === 'session') refresh(); }));
+    });
+    this.addCommand({ id: 'add-thread', name: 'Add a thread / follow-up', callback: () => { const f = this.app.workspace.getActiveFile(); this.promptAddThread(f && this.fm(f).type === 'session' ? f : null); } });
+    this.addCommand({ id: 'open-threads', name: 'Open threads & follow-ups', callback: () => { this.settings.dashboardTab = 'threads'; this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l => { l.view.tab = 'threads'; l.view.render(); }); this.activateView(); } });
+    this.registerMarkdownCodeBlockProcessor('dndbeyond', (src, el, ctx) => {
+      el.addClass('dmc-ddb-block'); lpSafe(el);
+      const f = this.app.vault.getAbstractFileByPath(ctx.sourcePath); if (!(f instanceof TFile)) return;
+      const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+      const draw = () => { el.empty(); this.renderDdbButton(el, f, this.fm(f).type === 'campaign' ? 'campaign' : 'character'); };
+      child.registerEvent(this.app.metadataCache.on('changed', x => { if (x.path === f.path) draw(); }));
+      draw();
+    });
+    this.registerMarkdownCodeBlockProcessor('session-link', (src, el, ctx) => this.renderSessionLink(src, el, ctx));
+    this.addCommand({ id: 'linked-prep-session', name: 'Create linked prep (from a session) or session (from a prep)', callback: () => {
+      const f = this.app.workspace.getActiveFile(); const t = f && this.fm(f).type;
+      if (t === 'session') this.createPrepForSession(f); else if (t === 'prep') this.createSessionForPrep(f); else new Notice('Open a session or session prep note first.');
+    } });
+    this.addCommand({ id: 'link-prep-session', name: 'Link this session/prep to an existing prep/session', callback: () => {
+      const f = this.app.workspace.getActiveFile(); const t = f && this.fm(f).type;
+      if (t === 'session' || t === 'prep') this.pickPartner(f); else new Notice('Open a session or session prep note first.');
+    } });
     this.addCommand({ id: 'random-armory', name: 'Generate random armory (weapons, armor, gear, magic items)', callback: () => new ArmoryGenModal(this).open() });
     this.addCommand({ id: 'random-spell', name: 'Generate a random spell', callback: () => new SpellGenModal(this).open() });
     this.registerMarkdownCodeBlockProcessor('random-armory', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderArmoryGenWidget(el, ctx.sourcePath); });
@@ -845,6 +882,8 @@ class DMCodexPlugin extends Plugin {
     }
     if (prevFile) {
       await this.app.fileManager.processFrontMatter(prevFile, fm => { fm.next = '[[' + file.basename + ']]'; });
+      const prevArc = this.fm(prevFile).arc;
+      if (prevArc && String(prevArc).trim() && !(extra.fields && extra.fields.arc)) await this.app.fileManager.processFrontMatter(file, fm => { if (!String(fm.arc || '').trim()) fm.arc = prevArc; });
     }
     if (extra.editor && this.settings.insertLinkOnCreate && extra.srcFile && extra.srcFile.path !== file.path && type !== 'session') {
       extra.editor.replaceSelection(this.app.fileManager.generateMarkdownLink(file, extra.srcFile.path));
@@ -1041,6 +1080,8 @@ class DMCodexPlugin extends Plugin {
       else if (k === 'armory') button(row, 'Armory', 'sword', () => this.app.commands.executeCommandById('dm-codex:open-armory'));
       else if (k === 'give') button(row, 'Give to character', 'hand', () => { const f = this.app.workspace.getActiveFile(); if (f) this.giveItem(f); });
       else if (k === 'update') button(row, 'Update vault content', 'download', () => this.runContentUpdate());
+      else if (k === 'threads') button(row, 'Threads', 'list-checks', () => this.app.commands.executeCommandById('dm-codex:open-threads'));
+      else if (k === 'addthread') button(row, 'Add thread', 'plus', () => { const f = this.app.workspace.getActiveFile(); this.promptAddThread(f && this.fm(f).type === 'session' ? f : null); });
       else if (k === 'latest') button(row, 'Latest session', 'scroll-text', () => { const s = this.getSessionsSorted(); if (s.length) this.app.workspace.getLeaf(false).openFile(s[s.length - 1]); });
     }
   }
@@ -2110,6 +2151,390 @@ class SpellGenModal extends Modal {
   onOpen() { this.contentEl.addClass('dmc-modal', 'dmc-wide'); this.contentEl.createEl('h3', { text: 'Random spell generator' }); this.plugin.renderSpellGenWidget(this.contentEl, null, () => this.close()); }
   onClose() { this.contentEl.empty(); }
 }
+
+/* ================================================================== */
+/* Session <-> Session Prep linking                                    */
+/* ================================================================== */
+/*
+ * A session links its prep with `prep: "[[Prep …]]"`; a prep links its session with `for_session: "[[Session …]]"`.
+ * ```session-link``` (in both templates) shows the partner note, or offers to create / link one.
+ */
+Object.assign(DMCodexPlugin.prototype, {
+  linkedNote(file, key) {
+    for (const l of extractLinks(this.fm(file)[key])) { const d = this.app.metadataCache.getFirstLinkpathDest(l, file.path); if (d) return d; }
+    return null;
+  },
+  prepFor(session) { return this.linkedNote(session, 'prep') || this.getNotes('prep').find(p => { const s = this.linkedNote(p, 'for_session'); return s && s.path === session.path; }) || null; },
+  sessionFor(prep) { return this.linkedNote(prep, 'for_session') || this.getNotes('session').find(s => { const p = this.linkedNote(s, 'prep'); return p && p.path === prep.path; }) || null; },
+  /** Link a session and a prep both ways, and give encounters planned in the prep the session too. */
+  async linkPrepAndSession(session, prep) {
+    await this.app.fileManager.processFrontMatter(session, fm => { fm.prep = '[[' + prep.basename + ']]'; });
+    await this.app.fileManager.processFrontMatter(prep, fm => { fm.for_session = '[[' + session.basename + ']]'; });
+    const sArc = String(this.fm(session).arc || '').trim(), pArc = String(this.fm(prep).arc || '').trim();
+    if (sArc && !pArc) await this.app.fileManager.processFrontMatter(prep, fm => { fm.arc = this.fm(session).arc; });
+    else if (pArc && !sArc) await this.app.fileManager.processFrontMatter(session, fm => { fm.arc = this.fm(prep).arc; });
+    let moved = 0;
+    for (const f of this.getNotes('encounter')) {
+      const fm = this.fm(f);
+      const inPrep = extractLinks(fm.prep).some(l => { const d = this.app.metadataCache.getFirstLinkpathDest(l, f.path); return d && d.path === prep.path; });
+      const hasSession = extractLinks(fm.session).some(l => { const d = this.app.metadataCache.getFirstLinkpathDest(l, f.path); return d && d.path === session.path; });
+      if (inPrep && !hasSession) {
+        await this.app.fileManager.processFrontMatter(f, x => {
+          const cur = [].concat(x.session == null || x.session === '' ? [] : x.session).map(String).filter(s => s.trim());
+          x.session = cur.length ? cur.concat('[[' + session.basename + ']]') : '[[' + session.basename + ']]';
+        });
+        moved++;
+      }
+    }
+    new Notice('Linked ' + session.basename + ' ↔ ' + prep.basename + (moved ? ' (' + moved + ' planned encounter' + (moved > 1 ? 's' : '') + ' added to the session)' : ''));
+  },
+  prepNameFor(session) {
+    const n = Number(this.fm(session).session_number);
+    return n ? 'Prep - Session ' + String(n).padStart(3, '0') : 'Prep - ' + session.basename;
+  },
+  async createPrepForSession(session) {
+    const existing = this.prepFor(session);
+    if (existing) { this.app.workspace.getLeaf('tab').openFile(existing); return existing; }
+    const prep = await this.createNote('prep', this.prepNameFor(session), { fields: { for_session: '[[' + session.basename + ']]', arc: this.fm(session).arc || undefined }, noOpen: true });
+    await this.linkPrepAndSession(session, prep);
+    this.app.workspace.getLeaf('tab').openFile(prep);
+    return prep;
+  },
+  createSessionForPrep(prep) {
+    const existing = this.sessionFor(prep);
+    if (existing) { this.app.workspace.getLeaf('tab').openFile(existing); return; }
+    const n = this.nextSessionNumber();
+    new PromptModal(this.app, 'New session #' + n + ' for ' + prep.basename, 'Optional title, e.g. "Into the Thornwood"', async title => {
+      const session = await this.createNote('session', 'Session ' + String(n).padStart(3, '0') + (title ? ' - ' + title : ''), { fields: { prep: '[[' + prep.basename + ']]', arc: this.fm(prep).arc || undefined }, noOpen: true });
+      await this.linkPrepAndSession(session, prep);
+      this.app.workspace.getLeaf('tab').openFile(session);
+    }, { allowEmpty: true, cta: 'Create session' }).open();
+  },
+  pickPartner(file) {
+    const isPrep = this.fm(file).type === 'prep';
+    const pool = isPrep ? this.getSessionsSorted().reverse() : this.getNotes('prep');
+    const items = pool.map(f => { const partner = isPrep ? this.prepFor(f) : this.sessionFor(f); return { f, label: f.basename + (partner ? '  ·  currently linked to ' + partner.basename : '') }; });
+    if (!items.length) { new Notice('No ' + (isPrep ? 'session' : 'prep') + ' notes yet — use Create instead.'); return; }
+    new NoteSuggestModal(this.app, items, it => isPrep ? this.linkPrepAndSession(it.f, file) : this.linkPrepAndSession(file, it.f),
+      'Link ' + file.basename + ' to which ' + (isPrep ? 'session' : 'prep note') + '?', it => it.label).open();
+  },
+  /** Set (or clear) the story arc on a session/prep and its linked partner. */
+  pickArc(file) {
+    const isPrep = this.fm(file).type === 'prep';
+    const partner = isPrep ? this.sessionFor(file) : this.prepFor(file);
+    const items = [{ none: true, basename: '— No arc' }, ...this.getNotes('arc').sort((a, b) => (Number(this.fm(a).act) || 0) - (Number(this.fm(b).act) || 0) || a.basename.localeCompare(b.basename)), { create: true, basename: '+ New story arc…' }];
+    new NoteSuggestModal(this.app, items, async it => {
+      if (it.create) { this.promptCreate('arc'); return; }
+      const val = it.none ? '' : '[[' + it.basename + ']]';
+      for (const f of [file, partner].filter(Boolean)) await this.app.fileManager.processFrontMatter(f, fm => { fm.arc = val; });
+      new Notice(it.none ? 'Arc cleared' : 'Arc set to ' + it.basename + (partner ? ' (also on ' + partner.basename + ')' : ''));
+    }, 'Which story arc is ' + file.basename + ' part of?', it => it.basename + (it.file ? '' : '')).open();
+  },
+  renderSessionLink(src, el, ctx) {
+    el.addClass('dmc-session-link'); lpSafe(el);
+    const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+    if (!(file instanceof TFile)) return;
+    const child = new obsidian.MarkdownRenderChild(el); ctx.addChild(child);
+    const draw = () => {
+      el.empty();
+      const isPrep = this.fm(file).type === 'prep';
+      const partner = isPrep ? this.sessionFor(file) : this.prepFor(file);
+      const r1 = el.createDiv({ cls: 'dmc-sl-row' });
+      setIcon(r1.createSpan({ cls: 'dmc-btn-icon' }), isPrep ? 'scroll-text' : 'clipboard-list');
+      r1.createSpan({ cls: 'dmc-sl-label', text: isPrep ? 'Session' : 'Prep' });
+      const v1 = r1.createDiv({ cls: 'dmc-sl-value' });
+      if (partner) {
+        const a = v1.createEl('a', { cls: 'internal-link', text: partner.basename });
+        a.addEventListener('click', e => { e.preventDefault(); this.app.workspace.openLinkText(partner.path, file.path, Keymap.isModEvent(e)); });
+        const c = button(r1, 'Change', 'link', () => this.pickPartner(file), 'dmc-icon-btn'); c.setAttr('title', 'Link a different ' + (isPrep ? 'session' : 'prep note'));
+      } else {
+        v1.createSpan({ cls: 'dmc-muted', text: isPrep ? 'not linked to a session yet' : 'no prep note yet' });
+        const acts = r1.createDiv({ cls: 'dmc-row' });
+        button(acts, isPrep ? 'Create session note' : 'Create prep note', 'plus', () => isPrep ? this.createSessionForPrep(file) : this.createPrepForSession(file), 'mod-cta');
+        button(acts, 'Link existing', 'link', () => this.pickPartner(file));
+      }
+      const r2 = el.createDiv({ cls: 'dmc-sl-row' });
+      setIcon(r2.createSpan({ cls: 'dmc-btn-icon' }), 'git-branch');
+      r2.createSpan({ cls: 'dmc-sl-label', text: 'Arc' });
+      const v2 = r2.createDiv({ cls: 'dmc-sl-value' });
+      const arc = this.linkedNote(file, 'arc');
+      if (arc) { const a = v2.createEl('a', { cls: 'internal-link', text: arc.basename }); a.addEventListener('click', e => { e.preventDefault(); this.app.workspace.openLinkText(arc.path, file.path, Keymap.isModEvent(e)); }); }
+      else v2.createSpan({ cls: 'dmc-muted', text: 'none' });
+      button(r2, arc ? 'Change' : 'Set arc', 'git-branch', () => this.pickArc(file), arc ? 'dmc-icon-btn' : '');
+    };
+    const refresh = obsidian.debounce ? obsidian.debounce(draw, 200, true) : draw;
+    child.registerEvent(this.app.metadataCache.on('changed', f => { const t = this.fm(f).type; if (f.path === file.path || t === 'prep' || t === 'session' || t === 'arc') refresh(); }));
+    draw();
+  },
+});
+
+/* ================================================================== */
+/* Campaign summary card (Overview + Ideas & Arcs tabs)                */
+/* ================================================================== */
+function mdSection(body, heading) {
+  const re = new RegExp('^##\\s+' + heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$', 'mi');
+  const m = re.exec(body); if (!m) return '';
+  const rest = body.slice(m.index + m[0].length);
+  const end = rest.search(/^##\s+/m);
+  return (end < 0 ? rest : rest.slice(0, end)).trim();
+}
+
+Object.assign(DMCodexPlugin.prototype, {
+  campaignNote() { return this.getNotes('campaign')[0] || null; },
+  /** "Open on D&D Beyond" when the note has a dndbeyond URL, otherwise "Add D&D Beyond link". */
+  renderDdbButton(container, file, kind) {
+    const url = String(this.fm(file).dndbeyond || '').trim();
+    if (/^https?:\/\//i.test(url)) {
+      const a = container.createEl('a', { cls: 'dmc-btn dmc-ddb', attr: { href: url, target: '_blank', rel: 'noopener', title: url } });
+      setIcon(a.createSpan({ cls: 'dmc-btn-icon' }), 'external-link'); a.createSpan({ text: kind === 'campaign' ? 'Campaign on D&D Beyond' : 'Open on D&D Beyond' });
+      lpSafe(a);
+      const e = button(container, '', 'link', () => this.promptDdb(file, kind), 'dmc-icon-btn'); e.setAttr('title', 'Change D&D Beyond link'); e.setAttr('aria-label', 'Change D&D Beyond link');
+    } else button(container, 'Add D&D Beyond link', 'link', () => this.promptDdb(file, kind), 'dmc-icon-btn');
+  },
+  promptDdb(file, kind) {
+    new PromptModal(this.app, 'D&D Beyond link for ' + file.basename, kind === 'campaign' ? 'https://www.dndbeyond.com/campaigns/…' : 'https://www.dndbeyond.com/characters/…', async v => {
+      let url = v.trim(); if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
+      await this.app.fileManager.processFrontMatter(file, fm => { fm.dndbeyond = url; });
+      new Notice(url ? (/dndbeyond\.com/i.test(url) ? 'D&D Beyond link saved' : 'Link saved (that isn\'t a dndbeyond.com address, but it will still open)') : 'D&D Beyond link removed');
+    }, { value: String(this.fm(file).dndbeyond || ''), allowEmpty: true, cta: 'Save link', hint: 'Paste the URL of the ' + (kind === 'campaign' ? 'campaign' : 'character sheet') + '. Leave empty to remove it.' }).open();
+  },
+  async createCampaignSummary() {
+    const f = await this.createNote('campaign', 'Campaign Summary', { noOpen: true });
+    this.app.workspace.getLeaf('tab').openFile(f);
+  },
+  /** Facts worked out from the vault. */
+  campaignFacts() {
+    const sessions = this.getSessionsSorted();
+    const played = sessions.filter(f => String(this.fm(f).status).toLowerCase() === 'played');
+    const planned = sessions.filter(f => String(this.fm(f).status || 'planned').toLowerCase() !== 'played');
+    const last = played[played.length - 1] || null;
+    const next = planned[0] || null;
+    const latest = sessions[sessions.length - 1] || null;
+    let arc = latest ? this.linkedNote(latest, 'arc') : null;
+    if (!arc) arc = this.getNotes('arc').find(a => String(this.fm(a).status).toLowerCase() === 'active') || null;
+    const party = this.getNotes('player').filter(f => (this.fm(f).status || 'active') === 'active');
+    const levels = party.map(f => Number(this.fm(f).level) || 1);
+    const quests = this.getNotes('quest').filter(f => !['completed', 'failed', 'abandoned'].includes(String(this.fm(f).status || '').toLowerCase()));
+    const villains = this.getNotes('monster').filter(f => this.fm(f).villain === true || this.fm(f).villain === 'true');
+    const encs = this.getNotes('encounter').filter(f => String(this.fm(f).status || 'planned') !== 'used');
+    return { sessions, played, last, next, arc, party, levels, quests, villains, encs };
+  },
+  async renderCampaignSummary(container, view) {
+    const card = container.createDiv({ cls: 'dmc-card dmc-summary' });
+    const note = this.campaignNote();
+    const head = card.createDiv({ cls: 'dmc-summary-head' });
+    setIcon(head.createSpan({ cls: 'dmc-btn-icon' }), 'book-open');
+    head.createSpan({ cls: 'dmc-summary-title', text: 'Campaign summary' });
+    const tools = head.createDiv({ cls: 'dmc-row' });
+    if (note) this.renderDdbButton(tools, note, 'campaign');
+    if (note) button(tools, 'Edit summary', 'pencil', () => this.app.workspace.openLinkText(note.path, '', true), 'dmc-icon-btn');
+    const F = this.campaignFacts();
+    const comp = new Component(); comp.load();
+    // premise
+    const prem = card.createDiv({ cls: 'dmc-summary-premise' });
+    if (note) {
+      const text = await this.app.vault.cachedRead(note);
+      const body = text.replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^# .*\n/, '');
+      const fm = this.fm(note);
+      const tags = [fm.setting, fm.tone, fm.system].filter(x => x && String(x).trim());
+      if (tags.length) { const t = prem.createDiv({ cls: 'dmc-summary-tags' }); tags.forEach(x => t.createSpan({ cls: 'dmc-pill', text: String(x) })); }
+      const premise = mdSection(body, 'Premise') || body.split(/\n\s*\n/).find(p => p.trim() && !p.trim().startsWith('#') && !p.trim().startsWith('```')) || '';
+      const stand = mdSection(body, 'Where things stand');
+      if (premise) await renderMd(this.app, premise, prem.createDiv(), note.path, comp);
+      if (stand) { prem.createDiv({ cls: 'dmc-summary-sub', text: 'Where things stand' }); await renderMd(this.app, stand, prem.createDiv(), note.path, comp); }
+      if (!premise && !stand) prem.createDiv({ cls: 'dmc-muted', text: 'Add a “## Premise” and a “## Where things stand” section to your Campaign Summary note.' });
+    } else {
+      prem.createDiv({ cls: 'dmc-muted', text: 'No campaign summary yet. Write the premise and where things stand, and it appears here.' });
+      button(prem, 'Write campaign summary', 'plus', () => this.createCampaignSummary(), 'mod-cta');
+    }
+    // live facts
+    const facts = card.createDiv({ cls: 'dmc-summary-facts' });
+    const fact = (label, value, onClick, sub) => {
+      const d = facts.createDiv({ cls: 'dmc-fact' + (onClick ? ' is-link' : '') });
+      d.createDiv({ cls: 'dmc-fact-label', text: label });
+      d.createDiv({ cls: 'dmc-fact-value', text: value });
+      if (sub) d.createDiv({ cls: 'dmc-fact-sub', text: sub });
+      if (onClick) { d.addEventListener('click', onClick); lpSafe(d); }
+    };
+    const openNote = f => () => this.app.workspace.openLinkText(f.path, '', false);
+    const goTab = t => () => { if (view) { view.tab = t; view.render(); } };
+    fact('Current arc', F.arc ? F.arc.basename : '—', F.arc ? openNote(F.arc) : goTab('idea'), F.arc && this.fm(F.arc).act ? 'Act ' + this.fm(F.arc).act : '');
+    fact('Last session', F.last ? F.last.basename.replace(/^Session (\d+) - /, '#$1 · ') : '—', F.last ? openNote(F.last) : null, (F.last ? String(this.fm(F.last).date || '') + ' · ' : '') + F.played.length + ' played');
+    fact('Next session', F.next ? F.next.basename.replace(/^Session (\d+) - /, '#$1 · ') : '—', F.next ? openNote(F.next) : null, F.next ? String(this.fm(F.next).date || '') : '');
+    const lv = F.levels.length ? (Math.min(...F.levels) === Math.max(...F.levels) ? 'Level ' + F.levels[0] : 'Levels ' + Math.min(...F.levels) + '–' + Math.max(...F.levels)) : '';
+    fact('Party', F.party.length + ' character' + (F.party.length === 1 ? '' : 's'), goTab('player'), lv);
+    const threads = await this.collectThreads(); const openT = threads.filter(t => !t.done).length;
+    fact('Open threads', String(openT), goTab('threads'), threads.length ? (threads.length - openT) + ' done' : '');
+    fact('Open quests', String(F.quests.length), goTab('quest'));
+    fact('Villains', String(F.villains.length), goTab('monster'));
+    fact('Planned encounters', String(F.encs.length), goTab('encounter'));
+  },
+});
+
+/* ================================================================== */
+/* Threads & follow-ups — collected from every session note            */
+/* ================================================================== */
+/*
+ * Reads the checklist items (- [ ] / - [x]) under a "## Threads & follow-ups" (or "## Threads",
+ * "## Follow-ups") heading in session notes. Ticking a thread anywhere edits that line in its session,
+ * so the session note stays the single source of truth.
+ */
+const THREAD_HEADING = /^#{2,4}\s*(threads?(\s*(&|and)\s*follow[- ]?ups?)?|follow[- ]?ups?|loose ends)\s*$/i;
+
+Object.assign(DMCodexPlugin.prototype, {
+  threadSection(lines) {
+    const start = lines.findIndex(l => THREAD_HEADING.test(l.trim()));
+    if (start < 0) return null;
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) if (/^#{1,4}\s/.test(lines[i])) { end = i; break; }
+    return { start, end };
+  },
+  async collectThreads() {
+    const out = [];
+    for (const f of this.getSessionsSorted()) {
+      const text = await this.app.vault.cachedRead(f);
+      const lines = text.split('\n'); const sec = this.threadSection(lines); if (!sec) continue;
+      for (let i = sec.start + 1; i < sec.end; i++) {
+        const m = lines[i].match(/^(\s*)[-*]\s+\[([ xX])\]\s+(.+?)\s*$/);
+        if (!m || m[1].length) continue;
+        const notes = [];
+        for (let j = i + 1; j < sec.end && /^(\s{2,}|\t)\S/.test(lines[j]); j++) notes.push({ line: j, raw: lines[j], text: lines[j].trim().replace(/^[-*]\s+(\[[ xX]\]\s+)?/, '') });
+        out.push({ file: f, line: i, raw: lines[i], done: m[2] !== ' ', text: m[3], notes, num: Number(this.fm(f).session_number) || 0 });
+      }
+    }
+    return out;
+  },
+  async editLines(file, fn) {
+    if (this.app.vault.process) return this.app.vault.process(file, data => fn(data.split('\n')).join('\n'));
+    const data = await this.app.vault.read(file); await this.app.vault.modify(file, fn(data.split('\n')).join('\n'));
+  },
+  async toggleThread(t) {
+    let ok = false;
+    await this.editLines(t.file, lines => {
+      let i = lines[t.line] === t.raw ? t.line : lines.indexOf(t.raw);
+      if (i < 0) return lines;
+      lines[i] = lines[i].replace(/\[([ xX])\]/, (m, c) => c === ' ' ? '[x]' : '[ ]'); ok = true; return lines;
+    });
+    if (!ok) new Notice('That thread changed in ' + t.file.basename + ' — refresh and try again.');
+  },
+  async addThread(file, text) {
+    await this.editLines(file, lines => {
+      const sec = this.threadSection(lines);
+      const item = '- [ ] ' + text.trim();
+      if (!sec) { while (lines.length && !lines[lines.length - 1].trim()) lines.pop(); lines.push('', '## Threads & follow-ups', item, ''); return lines; }
+      // reuse an empty "- [ ]" placeholder, otherwise insert after the last item in the section
+      for (let i = sec.start + 1; i < sec.end; i++) if (/^\s*[-*]\s+\[ \]\s*$/.test(lines[i])) { lines[i] = item; return lines; }
+      let at = sec.start + 1;
+      for (let i = sec.start + 1; i < sec.end; i++) if (/^\s*[-*]\s+\[[ xX]\]/.test(lines[i])) at = i + 1;
+      lines.splice(at, 0, item); return lines;
+    });
+    new Notice('Thread added to ' + file.basename);
+  },
+  findThreadLine(lines, t) { return lines[t.line] === t.raw ? t.line : lines.indexOf(t.raw); },
+  async addThreadNote(t, text) {
+    let ok = false;
+    await this.editLines(t.file, lines => {
+      const i = this.findThreadLine(lines, t); if (i < 0) return lines;
+      let at = i + 1; while (at < lines.length && /^(\s{2,}|\t)\S/.test(lines[at])) at++;
+      lines.splice(at, 0, '    - ' + text.trim()); ok = true; return lines;
+    });
+    if (!ok) new Notice('That thread changed in ' + t.file.basename + ' — refresh and try again.');
+  },
+  async removeThreadNote(t, n) {
+    await this.editLines(t.file, lines => { const i = lines[n.line] === n.raw ? n.line : lines.indexOf(n.raw); if (i >= 0) lines.splice(i, 1); return lines; });
+  },
+  async linkThread(t, target) {
+    const link = '[[' + target.basename + ']]';
+    if (t.text.includes(link) || t.notes.some(n => n.text.includes(link))) { new Notice('Already linked to ' + target.basename); return; }
+    let ok = false;
+    await this.editLines(t.file, lines => { const i = this.findThreadLine(lines, t); if (i < 0) return lines; lines[i] = lines[i].replace(/\s*$/, '') + ' → ' + link; ok = true; return lines; });
+    if (ok) new Notice('Linked to ' + target.basename); else new Notice('That thread changed — refresh and try again.');
+  },
+  pickThreadLink(t) {
+    const order = ['npc', 'place', 'quest', 'faction', 'player', 'item', 'monster', 'encounter', 'arc', 'idea', 'session'];
+    const files = this.getAllTyped().filter(f => order.includes(String(this.fm(f).type))).sort((a, b) => order.indexOf(this.fm(a).type) - order.indexOf(this.fm(b).type) || a.basename.localeCompare(b.basename));
+    new NoteSuggestModal(this.app, files, f => this.linkThread(t, f), 'Link this thread to… (NPC, place, quest, faction…)', f => (TYPES[this.fm(f).type] ? TYPES[this.fm(f).type].label + ' · ' : '') + f.basename).open();
+  },
+  threadMentions(t, path) {
+    const all = [t.text, ...t.notes.map(n => n.text)].join(' ');
+    return extractLinks(all).some(l => { const d = this.app.metadataCache.getFirstLinkpathDest(l, t.file.path); return d && d.path === path; });
+  },
+  promptAddThread(defaultFile) {
+    const sessions = this.getSessionsSorted().reverse();
+    if (!sessions.length) { new Notice('Create a session first.'); return; }
+    const ask = f => new PromptModal(this.app, 'New thread in ' + f.basename, 'e.g. Who is Brannoc paying?', text => this.addThread(f, text), { cta: 'Add thread' }).open();
+    if (defaultFile) return ask(defaultFile);
+    new NoteSuggestModal(this.app, sessions, ask, 'Add the thread to which session?').open();
+  },
+  /** opts: { filter: open|done|all, scope: all|earlier, limit, compact } */
+  renderThreads(container, sourcePath, opts) {
+    opts = opts || {};
+    const wrap = container.createDiv({ cls: 'dmc-threads' }); lpSafe(wrap);
+    let filter = opts.filter || 'open', q = '';
+    const host = sourcePath ? this.app.vault.getAbstractFileByPath(sourcePath) : null;
+    const hostNum = host instanceof TFile ? Number(this.fm(host).session_number) || 0 : 0;
+    const bar = wrap.createDiv({ cls: 'dmc-row dmc-wrap dmc-threads-bar' });
+    const seg = bar.createDiv({ cls: 'dmc-seg' });
+    const segBtns = {};
+    for (const [k, l] of [['open', 'Open'], ['done', 'Done'], ['all', 'All']]) segBtns[k] = button(seg, l, null, () => { filter = k; if (opts.onFilter) opts.onFilter(k); draw(); }, 'dmc-seg-btn');
+    const count = bar.createSpan({ cls: 'dmc-muted dmc-threads-count' });
+    if (!opts.compact) { const s = bar.createEl('input', { type: 'search', cls: 'dmc-input dmc-search', attr: { placeholder: 'Search threads…' } }); lpSafe(s); s.addEventListener('input', () => { q = s.value.toLowerCase(); draw(); }); }
+    button(bar, 'Add thread', 'plus', () => this.promptAddThread(opts.scope === 'earlier' ? null : (host instanceof TFile && this.fm(host).type === 'session' ? host : null)), opts.compact ? '' : 'mod-cta');
+    const list = wrap.createDiv({ cls: 'dmc-threads-list' });
+    const comp = new Component(); comp.load();
+    const draw = async () => {
+      Object.entries(segBtns).forEach(([k, b]) => b.toggleClass('is-active', k === filter));
+      let all = await this.collectThreads();
+      if (opts.scope === 'earlier' && host instanceof TFile) all = all.filter(t => t.file.path !== host.path && (!hostNum || t.num < hostNum));
+      if (opts.mentions === 'this' && host instanceof TFile) all = all.filter(t => this.threadMentions(t, host.path));
+      const open = all.filter(t => !t.done).length, done = all.length - open;
+      count.setText(open + ' open · ' + done + ' done');
+      let items = all.filter(t => filter === 'all' || (filter === 'open' ? !t.done : t.done));
+      if (q) items = items.filter(t => (t.text + ' ' + t.file.basename).toLowerCase().includes(q));
+      list.empty();
+      if (!items.length && opts.mentions === 'this') { list.createDiv({ cls: 'dmc-muted', text: 'No threads mention this note yet. On the Threads tab, use the link button on a thread to connect it here.' }); return; }
+      if (!items.length) { list.createDiv({ cls: 'dmc-muted', text: filter === 'open' ? (all.length ? 'No open threads — everything is followed up.' : 'No threads yet. Add checklist items under “## Threads & follow-ups” in your session notes, or click Add thread.') : 'Nothing here.' }); return; }
+      const groups = new Map();
+      items.sort((a, b) => b.num - a.num || a.line - b.line).forEach(t => { if (!groups.has(t.file.path)) groups.set(t.file.path, []); groups.get(t.file.path).push(t); });
+      let shown = 0;
+      for (const [, ts] of groups) {
+        if (opts.limit && shown >= opts.limit) break;
+        const f = ts[0].file;
+        const g = list.createDiv({ cls: 'dmc-thread-group' });
+        const gh = g.createDiv({ cls: 'dmc-thread-head' });
+        const a = gh.createEl('a', { cls: 'internal-link', text: f.basename });
+        a.addEventListener('click', e => { e.preventDefault(); this.app.workspace.openLinkText(f.path, sourcePath || '', Keymap.isModEvent(e)); });
+        if (this.fm(f).date) gh.createSpan({ cls: 'dmc-muted', text: ' · ' + this.fm(f).date });
+        for (const t of ts) {
+          if (opts.limit && shown >= opts.limit) break; shown++;
+          const row = g.createDiv({ cls: 'dmc-thread' + (t.done ? ' is-done' : '') });
+          const cb = row.createEl('input', { type: 'checkbox' }); cb.checked = t.done; lpSafe(cb);
+          cb.addEventListener('change', async () => { await this.toggleThread(t); });
+          const body = row.createDiv({ cls: 'dmc-thread-body' });
+          const txt = body.createDiv({ cls: 'dmc-thread-text' });
+          await renderMd(this.app, t.text, txt, f.path, comp);
+          txt.querySelectorAll('p').forEach(p => p.style.display = 'inline');
+          if (t.notes.length) {
+            const ul = body.createDiv({ cls: 'dmc-thread-notes' });
+            for (const n of t.notes) {
+              const li = ul.createDiv({ cls: 'dmc-thread-note' });
+              const nt = li.createDiv({ cls: 'dmc-thread-note-text' }); await renderMd(this.app, n.text, nt, f.path, comp); nt.querySelectorAll('p').forEach(p => p.style.display = 'inline');
+              const x = button(li, '', 'x', () => this.removeThreadNote(t, n), 'dmc-icon-btn dmc-danger dmc-thread-note-del'); x.setAttr('title', 'Remove this note');
+            }
+          }
+          const acts = row.createDiv({ cls: 'dmc-thread-actions' });
+          const nb = button(acts, '', 'message-square-plus', () => new PromptModal(this.app, 'Note on: ' + t.text.replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, '$1').slice(0, 60), 'Short note… ([[links]] work)', v => this.addThreadNote(t, v), { cta: 'Add note' }).open(), 'dmc-icon-btn');
+          nb.setAttr('title', 'Add a short note'); nb.setAttr('aria-label', 'Add a short note');
+          const lb = button(acts, '', 'link', () => this.pickThreadLink(t), 'dmc-icon-btn');
+          lb.setAttr('title', 'Link to an NPC, place, quest…'); lb.setAttr('aria-label', 'Link to a note');
+        }
+      }
+      if (opts.limit && items.length > shown) list.createDiv({ cls: 'dmc-muted', text: '+ ' + (items.length - shown) + ' more on the Threads tab' });
+    };
+    draw();
+    return draw;
+  },
+});
 
 /* @@CONTENT_PACK_START@@ */
 const EMBEDDED_CONTENT_PACK = null; // filled in by tools/build.py

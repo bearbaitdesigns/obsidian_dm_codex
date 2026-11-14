@@ -245,3 +245,62 @@ details.dmc-collapse { padding:0; }
 .dmc-btn.dmc-icon-btn:hover { background: var(--background-modifier-hover); }
 .dmc-btn.dmc-danger:hover { color: var(--text-error); }
 .dmc-btn.dmc-danger:hover svg { color: var(--text-error); }
+
+/* session <-> prep link bar (two lines: partner, arc) */
+.dmc-session-link { display:flex; flex-direction:column; gap:4px; padding:6px 10px; border:1px solid var(--background-modifier-border); border-left:4px solid var(--interactive-accent); border-radius:8px; background: var(--background-primary-alt); }
+.dmc-sl-row { display:grid; grid-template-columns: 18px 56px minmax(0, 1fr) auto; align-items:center; gap:8px; min-height:30px; }
+.dmc-sl-label { font-weight:700; }
+.dmc-sl-value { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dmc-sl-value .internal-link { font-weight:600; }
+.dmc-session-link .dmc-btn-icon { color: var(--text-accent); }
+.dmc-sl-row .dmc-row { flex-wrap:wrap; justify-content:flex-end; }
+
+/* campaign summary card */
+.dmc-summary { border-left:4px solid var(--interactive-accent); }
+.dmc-summary-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.dmc-summary-head .dmc-btn-icon { color: var(--text-accent); }
+.dmc-summary-title { font-weight:700; font-size:1.2em; margin-right:auto; }
+.dmc-summary-tags { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:4px; }
+.dmc-summary-tags .dmc-pill { margin-left:0; }
+.dmc-summary-premise { line-height:1.5; margin-bottom:10px; }
+.dmc-summary-premise p { margin:4px 0; }
+.dmc-summary-sub { font-size: var(--font-ui-smaller); font-weight:700; text-transform: uppercase; letter-spacing:.05em; color: var(--text-muted); margin-top:8px; }
+.dmc-summary { container-type: inline-size; }
+.dmc-summary-facts { display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap:8px; }
+@container (max-width: 640px) { .dmc-summary-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.dmc-fact { background: var(--background-primary); border:1px solid var(--background-modifier-border); border-radius:8px; padding:8px 10px; min-width:0; }
+.dmc-fact.is-link { cursor:pointer; }
+.dmc-fact.is-link:hover { border-color: var(--interactive-accent); }
+.dmc-fact-label { font-size: var(--font-ui-smaller); color: var(--text-muted); text-transform: uppercase; letter-spacing:.04em; }
+.dmc-fact-value { font-weight:700; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+.dmc-fact-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+
+/* threads & follow-ups */
+.dmc-threads-bar { margin-bottom:8px; }
+.dmc-threads-count { margin-right:auto; }
+.dmc-seg { display:inline-flex; border:1px solid var(--background-modifier-border); border-radius:8px; overflow:hidden; }
+.dmc-btn.dmc-seg-btn { margin:0; border:none; border-radius:0 !important; background:transparent; box-shadow:none; padding:3px 12px; }
+.dmc-btn.dmc-seg-btn.is-active { background: var(--interactive-accent); color: var(--text-on-accent); }
+.dmc-thread-group { margin:6px 0 10px; }
+.dmc-thread-head { font-weight:700; font-size: var(--font-ui-small); margin-bottom:2px; }
+.dmc-thread { display:flex; align-items:flex-start; gap:8px; padding:3px 6px; border-radius:6px; }
+.dmc-thread:hover { background: var(--background-modifier-hover); }
+.dmc-thread input[type=checkbox] { margin-top:4px; flex:none; }
+.dmc-thread-body { flex:1; min-width:0; }
+.dmc-thread-text { min-width:0; }
+.dmc-thread.is-done .dmc-thread-text { text-decoration: line-through; color: var(--text-muted); }
+.dmc-thread-notes { margin:2px 0 2px 2px; border-left:2px solid var(--background-modifier-border); padding-left:8px; }
+.dmc-thread-note { display:flex; align-items:flex-start; gap:4px; font-size: var(--font-ui-small); color: var(--text-muted); }
+.dmc-thread-note-text { flex:1; min-width:0; }
+.dmc-thread-note-del { opacity:0; }
+.dmc-thread-note:hover .dmc-thread-note-del { opacity:1; }
+.dmc-thread-actions { display:flex; gap:2px; opacity:.35; flex:none; }
+.dmc-thread:hover .dmc-thread-actions { opacity:1; }
+@media (hover: none) { .dmc-thread-actions, .dmc-thread-note-del { opacity:1; } }
+
+/* D&D Beyond links */
+.dmc-ddb-block { display:flex; align-items:center; gap:6px; }
+a.dmc-btn.dmc-ddb { text-decoration:none; color: var(--text-normal); border:1px solid var(--background-modifier-border); background: var(--interactive-normal); padding:4px 10px; }
+a.dmc-btn.dmc-ddb:hover { border-color:#e40712; color: var(--text-normal); }
+a.dmc-btn.dmc-ddb .dmc-btn-icon { color:#e40712; }
+.dmc-ddb-mini { font-size: var(--font-ui-smaller); margin-left:6px; }

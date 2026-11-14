@@ -162,6 +162,7 @@ for name, d in P:
 type: player
 character: "{name}"
 player: "{d['player']}"
+dndbeyond: ""
 species: {species}
 class: {d['cls']}
 subclass: "{d['sub']}"
@@ -178,6 +179,9 @@ tags: [pc]
 
 > [!npc] At a glance
 > **Player:** {d['player']} · **{species} {d['cls']}** {d['lvl']} · **Background:** {d['bg']}
+
+```dndbeyond
+```
 
 ## Concept
 {d['concept']}
@@ -272,6 +276,14 @@ title: Encounter in {name}
 6: An [[Ashen Hand Zealot]] watching from a distance
 ```
 
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
+
 ## Session history
 ```dm-list
 type: session
@@ -317,6 +329,14 @@ monster: {sb}
 rename: {name}
 ```
 
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
+
 ## Appearances
 ```dm-list
 type: session
@@ -327,6 +347,32 @@ empty: Not seen in a session yet.
 ```
 ''')
 
+w('Campaign/Campaign Summary.md', '''---
+type: campaign
+setting: "The Vale of Ash"
+tone: "Dark fantasy, hopeful heroes"
+system: "D&D 2024"
+dndbeyond: ""
+tags: [campaign]
+---
+# Campaign Summary
+
+```dndbeyond
+```
+
+## Premise
+In the river town of [[Briarford]], a cult called [[The Ashen Hand]] is gathering shards of the **Ashen Crown**, a relic said to command fire and ash. Three unlikely heroes, a reformed thief, a dwarven cleric and a goliath sellsword, are pulled in by a missing brother, a burned shrine and an old grudge.
+
+## Where things stand
+The party has reached Briarford and learned the Hand burned the shrine. Mira's brother [[Tobin Thorne]] was last seen at [[The Old Mill]], where [[Sister Cinder]] leads the Hand's local cell.
+
+## Themes
+- Desperation makes good people do terrible things
+- The right question, the wrong answer
+
+## The big threat
+- [[Sister Cinder]] and the Crown Rekindled: [[Act 1 - The Crown Rekindled]]
+''')
 w('World/Factions/The Ashen Hand.md', '''---
 type: faction
 alignment: Lawful Evil
@@ -342,6 +388,14 @@ Reassemble the **Ashen Crown**, a relic said to command fire and ash.
 
 ## Methods
 Protection rackets, recruiting the desperate, burning anything that guards a shard.
+
+## Threads
+*Session threads and follow-ups that link to this note.*
+```threads
+mentions: this
+filter: all
+compact: true
+```
 
 ## Members
 ```dm-list
@@ -428,12 +482,17 @@ locations: ["[[Briarford]]", "[[The Drunken Owlbear]]", "[[Thornwood]]"]
 npcs: ["[[Old Brannoc]]", "[[Mother Wenna]]"]
 prev: ""
 next: "[[Session 002 - The Old Mill]]"
+prep: ""
+arc: "[[Act 1 - The Crown Rekindled]]"
 tags: [session]
 ---
 # Session 001 - The Road to Briarford
 
 > [!info] Navigation
 > Next: [[Session 002 - The Old Mill]] · [[Home]]
+
+```session-link
+```
 
 ## Strong start
 A [[Goblin Warrior|goblin]] ambush on the Thornwood road — the goblins were fleeing *something* and attacked out of panic.
@@ -462,8 +521,12 @@ A [[Goblin Warrior|goblin]] ambush on the Thornwood road — the goblins were fl
 | Goblin shortbow | Kestrel |
 
 ## Threads & follow-ups
-- [ ] Who is Brannoc paying?
+- [ ] Who is Brannoc paying? → [[Old Brannoc]]
+    - He flinched when Kestrel mentioned grey hoods.
+    - Ask Mother Wenna — she keeps the shrine's ledger.
 - [ ] What is the "grey hood" symbol?
+- [x] Get the party to [[Briarford]] before nightfall
+- [ ] The captured goblin knows where the Hand camps → [[Thornwood]]
 ''')
 w('Campaign/Sessions/Session 002 - The Old Mill.md', '''---
 type: session
@@ -476,16 +539,27 @@ locations: ["[[The Old Mill]]"]
 npcs: ["[[Tobin Thorne]]", "[[Sister Cinder]]"]
 prev: "[[Session 001 - The Road to Briarford]]"
 next: ""
+prep: "[[Prep - Session 002]]"
+arc: "[[Act 1 - The Crown Rekindled]]"
 tags: [session]
 ---
 # Session 002 - The Old Mill
 
 > [!info] Navigation
-> Previous: [[Session 001 - The Road to Briarford]] · Prep: [[Prep - Session 002]] · [[Home]]
+> Previous: [[Session 001 - The Road to Briarford]] · [[Home]]
+
+```session-link
+```
 
 ## Recap
 > [!read-aloud] Last time…
 > You fought off panicked goblins on the Thornwood road, reached Briarford, and learned that both a shrine and a courier have fallen to the same grey-hooded shadow.
+
+## Open threads from earlier sessions
+```threads
+scope: earlier
+compact: true
+```
 
 ## Strong start
 Smoke rises from [[The Old Mill]] as the party approaches — someone is burning papers.
@@ -504,10 +578,14 @@ Smoke rises from [[The Old Mill]] as the party approaches — someone is burning
 w('Planning/Session Prep/Prep - Session 002.md', '''---
 type: prep
 for_session: "[[Session 002 - The Old Mill]]"
+arc: "[[Act 1 - The Crown Rekindled]]"
 date: 2026-11-12
 tags: [prep]
 ---
 # Prep - Session 002
+
+```session-link
+```
 
 ## 1. Characters
 ```dm-list
@@ -554,6 +632,23 @@ tags: [arc]
 2. The Old Mill — [[The Missing Courier]]
 3. The shard in the [[Thornwood]]
 4. New moon ritual
+
+## Sessions in this arc
+```dm-list
+type: session
+where: arc
+sort: session_number
+fields: [session_number, date, status]
+empty: No sessions yet — set the arc from a session's Arc button.
+```
+
+## Prep notes in this arc
+```dm-list
+type: prep
+where: arc
+fields: [for_session, date]
+empty: No prep notes in this arc yet.
+```
 
 ## Ideas feeding this arc
 ```dm-list
