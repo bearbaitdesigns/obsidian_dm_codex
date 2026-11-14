@@ -413,13 +413,14 @@ class DashboardView extends ItemView {
     else if (this.tab === 'tools') this.renderTools(body);
     else if (this.tab === 'idea') { this.renderList(body, 'idea'); this.renderList(body, 'arc'); this.renderList(body, 'prep'); }
     else if (this.tab === 'faction') { this.renderList(body, 'faction'); }
-    else if (this.tab === 'armory') { this.plugin.renderArmory(body); ['weapon', 'armor', 'gear', 'item'].forEach(k => this.renderList(body, k)); }
+    else if (this.tab === 'armory') { this.plugin.renderArmory(body, this); ['weapon', 'armor', 'gear', 'item'].forEach(k => this.renderList(body, k, { collapsible: true })); }
+    else if (this.tab === 'spell') { const c = body.createDiv({ cls: 'dmc-card' }); c.createEl('h4', { text: 'Spells' }); this.plugin.renderSpellBrowser(c, ''); this.plugin.renderSpellGenWidget(this.collapsible(body, 'spellgen', 'Random spell generator', 'sparkles'), null); }
     else if (this.tab === 'shops') { const c = body.createDiv({ cls: 'dmc-card' }); this.plugin.renderShopWidget(c, null, {}); }
     else if (this.tab === 'tables') { this.plugin.renderTablesPanel(body); }
     else if (this.tab === 'monster' || this.tab === 'encounter') {
       const bar = body.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'margin-bottom:8px' } });
       const run = id => { if (!this.app.commands.executeCommandById(id)) new Notice('Enable the DM Statblocks plugin.'); };
-      if (this.tab === 'monster') { button(bar, 'Build a monster', 'skull', () => run('dm-statblocks:new-monster'), 'mod-cta'); button(bar, 'Build a villain', 'crown', () => run('dm-statblocks:new-villain')); button(bar, 'Random monster', 'dices', () => run('dm-statblocks:random-monster')); }
+      if (this.tab === 'monster') { button(bar, 'Monster/Villain', 'skull', () => run('dm-statblocks:new-monster'), 'mod-cta'); button(bar, 'Random monster/villain', 'dices', () => run('dm-statblocks:random-monster')); }
       else { button(bar, 'Build an encounter', 'swords', () => run('dm-statblocks:new-encounter'), 'mod-cta'); button(bar, 'Suggest a random encounter', 'sparkles', () => run('dm-statblocks:suggest-encounter')); button(bar, 'Initiative tracker', 'list-ordered', () => run('dm-statblocks:open-tracker')); }
       this.renderList(body, this.tab);
     }
@@ -431,6 +432,79 @@ class DashboardView extends ItemView {
     a.addEventListener('mouseover', e => this.app.workspace.trigger('hover-link', { event: e, source: VIEW_TYPE, hoverParent: this, targetEl: a, linktext: file.path }));
     return a;
   }
+  /** Quick create, grouped by what the buttons are for. Uniform buttons in a fixed 2-column grid per group. */
+  renderQuickCreate(card) {
+    const p = this.plugin;
+    const hasCmd = id => !!(this.app.commands && this.app.commands.commands[id]);
+    const run = id => () => this.app.commands.executeCommandById(id);
+    const create = k => () => p.promptCreate(k);
+    const GROUPS = [
+      { title: 'Run the game', icon: 'scroll-text', items: [
+        ['Session', 'scroll-text', create('session'), 'New session (numbers and links itself)'],
+        ['Prep', 'clipboard-list', create('prep'), 'New session prep note'],
+        ['Encounter', 'swords', create('encounter'), 'Encounter builder'],
+        ['Initiative', 'list-ordered', run('dm-statblocks:open-tracker'), 'Open the initiative tracker', 'dm-statblocks:open-tracker'],
+      ] },
+      { title: 'Party & world', icon: 'users', items: [
+        ['Player', 'users', create('player'), 'New player character'],
+        ['NPC', 'user-round', create('npc'), 'New NPC'],
+        ['Place', 'map-pin', create('place'), 'New place'],
+        ['Faction', 'flag', create('faction'), 'New faction'],
+        ['Quest', 'map', create('quest'), 'New quest'],
+      ] },
+      { title: 'Monsters', icon: 'skull', items: [
+        ['Monster/Villain', 'skull', create('monster'), 'Monster/Villain builder (choose Kind in the form)'],
+        ['Random', 'dices', run('dm-statblocks:random-monster'), 'Random monster/villain for your party', 'dm-statblocks:random-monster'],
+      ] },
+      { title: 'Armory & magic', icon: 'sword', items: [
+        ['Weapon', 'sword', create('weapon'), 'New weapon'],
+        ['Armor', 'shield', create('armor'), 'New armor'],
+        ['Gear', 'backpack', create('gear'), 'New gear'],
+        ['Magic item', 'gem', create('item'), 'New magic item'],
+        ['Spell', 'wand-sparkles', create('spell'), 'New spell'],
+        ['Random loot', 'sparkles', () => new ArmoryGenModal(p).open(), 'Random weapons, armor, gear and magic items'],
+      ] },
+      { title: 'Generators', icon: 'sparkles', items: [
+        ['Side quest', 'sparkles', () => new SideQuestModal(p).open(), 'Side quest generator'],
+        ['NPC', 'user-plus', () => new NpcGenModal(p).open(), 'Random NPC'],
+        ['Tavern', 'beer', () => new ShopModal(p, 'tavern').open(), 'Tavern / inn generator'],
+        ['Shop', 'store', () => new ShopModal(p, 'potion').open(), 'Shop generator (potion, general, smithy, magic…)'],
+        ['Random loot', 'gem', () => new ArmoryGenModal(p).open(), 'Random weapons, armor, gear and magic items'],
+        ['Random spell', 'wand-sparkles', () => new SpellGenModal(p).open(), 'Invent a new spell'],
+        ['Roll table', 'table', () => p.openTablePicker(), 'Roll on a random table'],
+        ['Dice', 'dices', () => new DiceModal(this.app).open(), 'Dice roller'],
+      ] },
+      { title: 'Planning', icon: 'lightbulb', items: [
+        ['Idea', 'lightbulb', create('idea'), 'Capture an idea'],
+        ['Story arc', 'git-branch', create('arc'), 'New story arc'],
+      ] },
+    ];
+    card.createEl('h4', { text: 'Quick create' });
+    const grid = card.createDiv({ cls: 'dmc-qgroups' });
+    for (const g of GROUPS) {
+      const items = g.items.filter(it => !it[4] || hasCmd(it[4]));
+      if (!items.length) continue;
+      const box = grid.createDiv({ cls: 'dmc-qgroup' });
+      const head = box.createDiv({ cls: 'dmc-qgroup-title' });
+      setIcon(head.createSpan({ cls: 'dmc-qgroup-icon' }), g.icon); head.createSpan({ text: g.title });
+      const bg = box.createDiv({ cls: 'dmc-qgrid' });
+      for (const [label, icon, fn, tip] of items) {
+        const b = button(bg, label, icon, fn, 'dmc-qbtn');
+        b.setAttr('aria-label', tip); b.setAttr('title', tip);
+      }
+    }
+  }
+  /** A collapsible section (closed by default; remembers what you opened while the dashboard is open). */
+  collapsible(body, key, title, icon, count) {
+    this.openSections = this.openSections || new Set();
+    const d = body.createEl('details', { cls: 'dmc-card dmc-collapse' });
+    d.open = this.openSections.has(key);
+    d.addEventListener('toggle', () => { if (d.open) this.openSections.add(key); else this.openSections.delete(key); });
+    const sm = d.createEl('summary', { cls: 'dmc-collapse-head' });
+    setIcon(sm.createSpan({ cls: 'dmc-btn-icon' }), icon); sm.createSpan({ cls: 'dmc-collapse-title', text: title });
+    if (count != null) sm.createSpan({ cls: 'dmc-pill', text: String(count) });
+    return d.createDiv({ cls: 'dmc-collapse-body' });
+  }
   renderOverview(body) {
     const p = this.plugin;
     if (p.availableContentVersion && p.availableContentVersion !== p.settings.contentVersion) {
@@ -438,21 +512,7 @@ class DashboardView extends ItemView {
       up.createDiv({ text: 'DM Vault content v' + p.availableContentVersion + ' is ready to install. New notes are added and unedited ones refreshed — anything you\'ve edited is kept.' });
       button(up, 'Review & update', 'download', () => p.runContentUpdate(), 'mod-cta');
     }
-    const actions = body.createDiv({ cls: 'dmc-card' });
-    actions.createEl('h4', { text: 'Quick create' });
-    const row = actions.createDiv({ cls: 'dmc-row dmc-wrap' });
-    for (const k of ['session', 'prep', 'encounter', 'player', 'npc', 'place', 'quest', 'faction', 'item', 'idea', 'arc', 'monster']) {
-      button(row, TYPES[k].label, TYPES[k].icon, () => p.promptCreate(k));
-    }
-    const row2 = actions.createDiv({ cls: 'dmc-row dmc-wrap' });
-    button(row2, 'Side quest', 'sparkles', () => new SideQuestModal(p).open());
-    button(row2, 'Random NPC', 'user-plus', () => new NpcGenModal(p).open());
-    button(row2, 'Dice', 'dices', () => new DiceModal(this.app).open());
-    button(row2, 'Tavern / shop', 'store', () => new ShopModal(p, 'tavern').open());
-    button(row2, 'Random table', 'table', () => p.openTablePicker());
-    if (this.app.commands && this.app.commands.commands['dm-statblocks:random-monster']) button(row2, 'Random monster', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
-    if (this.app.commands && this.app.commands.commands['dm-statblocks:open-tracker'])
-      button(row2, 'Initiative tracker', 'swords', () => this.app.commands.executeCommandById('dm-statblocks:open-tracker'));
+    this.renderQuickCreate(body.createDiv({ cls: 'dmc-card dmc-quick' }));
 
     const stats = body.createDiv({ cls: 'dmc-stats' });
     for (const k of ['session', 'player', 'npc', 'place', 'quest', 'encounter', 'monster', 'idea']) {
@@ -498,14 +558,20 @@ class DashboardView extends ItemView {
     const recent = ['npc', 'place', 'faction', 'quest'].flatMap(k => p.getNotes(k)).sort((a, b) => b.stat.mtime - a.stat.mtime).slice(0, 8);
     recent.forEach(f => { const r = c5.createDiv({ cls: 'dmc-line' }); this.link(r, f); r.createSpan({ cls: 'dmc-muted', text: ' ' + TYPES[p.fm(f).type]?.label }); });
   }
-  renderList(body, type) {
-    const p = this.plugin; const card = body.createDiv({ cls: 'dmc-card' });
-    const head = card.createDiv({ cls: 'dmc-row dmc-spread' });
-    const h = head.createEl('h4'); const ic = h.createSpan({ cls: 'dmc-btn-icon' }); setIcon(ic, TYPES[type].icon); h.appendText(' ' + TYPES[type].plural);
+  renderList(body, type, opts = {}) {
+    const p = this.plugin; let card, head;
+    if (opts.collapsible) {
+      card = this.collapsible(body, 'list-' + type, opts.title || TYPES[type].plural, TYPES[type].icon, p.getNotes(type).length);
+      head = card.createDiv({ cls: 'dmc-row dmc-spread dmc-collapse-tools' }); head.createDiv();
+    } else {
+      card = body.createDiv({ cls: 'dmc-card' });
+      head = card.createDiv({ cls: 'dmc-row dmc-spread' });
+      const h = head.createEl('h4'); const ic = h.createSpan({ cls: 'dmc-btn-icon' }); setIcon(ic, TYPES[type].icon); h.appendText(' ' + TYPES[type].plural);
+    }
     const right = head.createDiv({ cls: 'dmc-row' });
     const search = right.createEl('input', { type: 'search', cls: 'dmc-input dmc-search', attr: { placeholder: 'Filter…' } });
     search.value = this.filter;
-    button(right, 'New ' + TYPES[type].label, 'plus', () => p.promptCreate(type), 'mod-cta');
+    button(right, 'New ' + TYPES[type].label, 'plus', () => p.promptCreate(type), opts.collapsible ? '' : 'mod-cta');
     const tableWrap = card.createDiv();
     const draw = () => {
       tableWrap.empty();
@@ -542,6 +608,17 @@ class DashboardView extends ItemView {
     p.renderSideQuestWidget(c1, null);
     const c2 = body.createDiv({ cls: 'dmc-card' }); c2.createEl('h4', { text: 'Random NPC' });
     p.renderNpcWidget(c2, null);
+    if (this.app.commands && this.app.commands.commands['dm-statblocks:new-monster']) {
+      const cm = body.createDiv({ cls: 'dmc-card' }); cm.createEl('h4', { text: 'Monsters & villains' });
+      const r = cm.createDiv({ cls: 'dmc-row dmc-wrap' });
+      button(r, 'Monster/Villain builder', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'), 'mod-cta');
+      button(r, 'Random monster/villain', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
+      cm.createDiv({ cls: 'dmc-muted', text: 'The builder captures a full 2024 statblock with a CR check; the random generator suggests a CR from your party\'s level and the difficulty you want.' });
+    }
+    const ca = body.createDiv({ cls: 'dmc-card' }); ca.createEl('h4', { text: 'Random armory' });
+    p.renderArmoryGenWidget(ca, null);
+    const cs = body.createDiv({ cls: 'dmc-card' }); cs.createEl('h4', { text: 'Random spell' });
+    p.renderSpellGenWidget(cs, null);
     const c3 = body.createDiv({ cls: 'dmc-card' }); c3.createEl('h4', { text: 'Dice & names' });
     const row = c3.createDiv({ cls: 'dmc-row dmc-wrap' });
     const out = c3.createDiv({ cls: 'dmc-dice-log' });
@@ -604,6 +681,11 @@ class DMCodexPlugin extends Plugin {
     }
     this.addCommand({ id: 'give-item', name: 'Give this item to a character…', callback: () => { const f = this.app.workspace.getActiveFile(); if (f) this.giveItem(f); } });
     this.addCommand({ id: 'open-armory', name: 'Open armory', callback: () => { this.settings.dashboardTab = 'armory'; this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach(l => { l.view.tab = 'armory'; l.view.render(); }); this.activateView(); } });
+    this.addCommand({ id: 'random-armory', name: 'Generate random armory (weapons, armor, gear, magic items)', callback: () => new ArmoryGenModal(this).open() });
+    this.addCommand({ id: 'random-spell', name: 'Generate a random spell', callback: () => new SpellGenModal(this).open() });
+    this.registerMarkdownCodeBlockProcessor('random-armory', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderArmoryGenWidget(el, ctx.sourcePath); });
+    this.registerMarkdownCodeBlockProcessor('spell-generator', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderSpellGenWidget(el, ctx.sourcePath); });
+    this.registerMarkdownCodeBlockProcessor('spell-browser', (src, el, ctx) => { el.addClass('dmc-block'); lpSafe(el); this.renderSpellBrowser(el, ctx.sourcePath); });
     this.addCommand({ id: 'side-quest', name: 'Generate side quest', callback: () => new SideQuestModal(this).open() });
     this.addCommand({ id: 'random-npc', name: 'Generate random NPC', callback: () => new NpcGenModal(this).open() });
     this.addCommand({ id: 'roll-dice', name: 'Roll dice', callback: () => new DiceModal(this.app).open() });
@@ -942,9 +1024,11 @@ class DMCodexPlugin extends Plugin {
       else if (k === 'tavern') button(row, 'Tavern', 'beer', () => new ShopModal(this, 'tavern').open());
       else if (k === 'shop') button(row, 'Shop', 'store', () => new ShopModal(this, 'potion').open());
       else if (k === 'tables') button(row, 'Random table', 'table', () => this.openTablePicker());
-      else if (k === 'builder') button(row, 'Build monster', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'));
-      else if (k === 'villain') button(row, 'Build villain', 'crown', () => this.app.commands.executeCommandById('dm-statblocks:new-villain'));
-      else if (k === 'randommonster') button(row, 'Random monster', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
+      else if (k === 'builder') button(row, 'Monster/Villain', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'));
+      else if (k === 'villain') button(row, 'Monster/Villain', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-villain'));
+      else if (k === 'armorygen') button(row, 'Random loot', 'gem', () => new ArmoryGenModal(this).open());
+      else if (k === 'spellgen') button(row, 'Random spell', 'wand-sparkles', () => new SpellGenModal(this).open());
+      else if (k === 'randommonster') button(row, 'Random monster/villain', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
       else if (k === 'armory') button(row, 'Armory', 'sword', () => this.app.commands.executeCommandById('dm-codex:open-armory'));
       else if (k === 'give') button(row, 'Give to character', 'hand', () => { const f = this.app.workspace.getActiveFile(); if (f) this.giveItem(f); });
       else if (k === 'update') button(row, 'Update vault content', 'download', () => this.runContentUpdate());
@@ -1318,7 +1402,12 @@ class ItemBuilderModal extends Modal {
     const c = this.contentEl; c.addClass('dmc-modal', 'dmc-wide');
     const titles = { weapon: 'New weapon', armor: 'New armor', gear: 'New gear', item: 'New magic item', spell: 'New spell' };
     c.createEl('h3', { text: titles[this.kind] });
-    const g = c.createDiv({ cls: 'dmc-form-grid' });
+    this.modalEl.addClass('dmc-builder-modal');
+    const layout = c.createDiv({ cls: 'dmc-builder' });
+    const form = layout.createDiv({ cls: 'dmc-builder-form' });
+    const prevWrap = layout.createDiv({ cls: 'dmc-builder-preview' });
+    const sec = t => { form.createDiv({ cls: 'dmc-sec', text: t }); return form.createDiv({ cls: 'dmc-form-grid' }); };
+    let g = sec('Basics');
     const v = this.v = {};
     const name = fEl(g, 'Name', inp('text', this.init.name || '', this.kind === 'spell' ? 'e.g. Ashen Bolt' : 'e.g. Ember-Forged Longsword'));
     v.name = () => name.value.trim();
@@ -1326,20 +1415,25 @@ class ItemBuilderModal extends Modal {
     const holderSel = () => { const s = fEl(g, 'Held by', sel([['', '— (catalog / unowned)'], ...players.map(f => [f.basename, f.basename]), ['__party', 'Party stash']], this.init.holder || '')); return s; };
     if (this.kind === 'weapon') {
       const cat = fEl(g, 'Category', sel(['Simple Melee', 'Simple Ranged', 'Martial Melee', 'Martial Ranged'], 'Martial Melee'));
+      g = sec('Combat');
       const dmg = fEl(g, 'Damage dice', inp('text', '1d8'));
       const dt = fEl(g, 'Damage type', sel(DMG_TYPES, 'Slashing'));
       const mastery = fEl(g, 'Mastery', sel(['', ...MASTERIES], 'Sap'));
       const range = fEl(g, 'Range (thrown/ammo)', inp('text', '', '80/320'));
       const vers = fEl(g, 'Versatile damage', inp('text', '', '1d10'));
+      g = sec('Magic');
       const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], '0'));
       const rarity = fEl(g, 'Rarity', sel(RARITIES, ''));
       const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], 'false'));
+      g = sec('Value & ownership');
       const weight = fEl(g, 'Weight', inp('text', '', '3 lb.'));
       const cost = fEl(g, 'Cost', inp('text', '', '15 gp'));
       const holder = holderSel();
       const qty = fEl(g, 'Quantity', inp('number', 1));
-      const pw = g.createDiv({ cls: 'dmc-f dmc-span2' }); pw.createEl('label', { text: 'Properties' }); const pbox = pw.createDiv({ cls: 'dmc-checks' });
+      g = sec('Properties');
+      const pw = g.createDiv({ cls: 'dmc-f dmc-span2' }); pw.createEl('label', { text: 'Weapon properties' }); const pbox = pw.createDiv({ cls: 'dmc-checks' });
       const props = {}; WEAPON_PROPS.forEach(p => { const l = pbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); l.appendText(' ' + p); props[p] = cb; lpSafe(l); });
+      g = sec('Description');
       const desc = fEl(g, 'Description / special properties', ta('', 'Magic effects, history, appearance…'), true);
       this.build = () => {
         const b = Number(bonus.value);
@@ -1351,15 +1445,19 @@ class ItemBuilderModal extends Modal {
       };
     } else if (this.kind === 'armor') {
       const cat = fEl(g, 'Category', sel(['Light', 'Medium', 'Heavy', 'Shield'], 'Medium'));
+      g = sec('Defense');
       const base = fEl(g, 'Base AC', inp('number', 14));
       const str = fEl(g, 'Strength requirement', inp('text', '', 'e.g. 15'));
       const stealth = fEl(g, 'Stealth', sel([['', 'Normal'], ['Disadvantage', 'Disadvantage']], ''));
+      g = sec('Magic');
       const bonus = fEl(g, 'Magic bonus', sel(['0', '1', '2', '3'], '0'));
       const rarity = fEl(g, 'Rarity', sel(RARITIES, ''));
       const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes']], 'false'));
+      g = sec('Value & ownership');
       const weight = fEl(g, 'Weight', inp('text', '', '20 lb.'));
       const cost = fEl(g, 'Cost', inp('text', '', '400 gp'));
       const holder = holderSel();
+      g = sec('Description');
       const desc = fEl(g, 'Description / special properties', ta(''), true);
       this.build = () => {
         const b = Number(bonus.value), n = Number(base.value) || 10;
@@ -1370,10 +1468,12 @@ class ItemBuilderModal extends Modal {
       };
     } else if (this.kind === 'gear') {
       const cat = fEl(g, 'Category', sel(GEAR_CATS, 'Adventuring Gear'));
+      g = sec('Value & ownership');
       const cost = fEl(g, 'Cost', inp('text', '', '1 gp'));
       const weight = fEl(g, 'Weight', inp('text', '', '1 lb.'));
       const holder = holderSel();
       const qty = fEl(g, 'Quantity', inp('number', 1));
+      g = sec('Description');
       const desc = fEl(g, 'Description / how it works', ta(''), true);
       this.build = () => {
         const fm = { type: 'gear', category: cat.value, cost: cost.value, weight: weight.value, holder: this.holderLink(holder.value), quantity: Number(qty.value) || 1, tags: ['armory', 'gear'] };
@@ -1383,8 +1483,10 @@ class ItemBuilderModal extends Modal {
       const kind = fEl(g, 'Item type', sel(ITEM_KINDS, 'Wondrous Item'));
       const rarity = fEl(g, 'Rarity', sel(RARITIES.slice(1), 'uncommon'));
       const attune = fEl(g, 'Requires attunement', sel([['false', 'No'], ['true', 'Yes'], ['by a spellcaster', 'By a spellcaster']], 'false'));
+      g = sec('Charges & ownership');
       const charges = fEl(g, 'Charges (optional)', inp('text', '', '7, regains 1d6+1 at dawn'));
       const holder = holderSel();
+      g = sec('Effect');
       const desc = fEl(g, 'What it does', ta('', 'Describe the effect. [[Links]] to conditions and spells work.', 6), true);
       const curse = fEl(g, 'Curse / quirk (optional)', ta('', '', 2), true);
       this.build = () => {
@@ -1395,6 +1497,7 @@ class ItemBuilderModal extends Modal {
     } else if (this.kind === 'spell') {
       const level = fEl(g, 'Level', sel(Array.from({ length: 10 }, (_, i) => [String(i), i === 0 ? 'Cantrip' : 'Level ' + i]), '1'));
       const school = fEl(g, 'School', sel(SCHOOLS, 'Evocation'));
+      g = sec('Casting');
       const time = fEl(g, 'Casting time', sel(['Action', 'Bonus Action', 'Reaction', '1 minute', '10 minutes', '1 hour', '8 hours'], 'Action'));
       const trigger = fEl(g, 'Reaction trigger (if Reaction)', inp('text', '', 'which you take when…'));
       const range = fEl(g, 'Range', inp('text', '60 feet'));
@@ -1404,8 +1507,10 @@ class ItemBuilderModal extends Modal {
       const cw = g.createDiv({ cls: 'dmc-f' }); cw.createEl('label', { text: 'Components' }); const cbox = cw.createDiv({ cls: 'dmc-checks' });
       const comps = {}; ['V', 'S', 'M'].forEach(k => { const l = cbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); cb.checked = k !== 'M'; l.appendText(' ' + k); comps[k] = cb; });
       const mat = fEl(g, 'Material component', inp('text', '', 'a pinch of ash'));
-      const kw = g.createDiv({ cls: 'dmc-f dmc-span2' }); kw.createEl('label', { text: 'Classes' }); const kbox = kw.createDiv({ cls: 'dmc-checks' });
+      g = sec('Classes');
+      const kw = g.createDiv({ cls: 'dmc-f dmc-span2' }); kw.createEl('label', { text: 'Spell lists' }); const kbox = kw.createDiv({ cls: 'dmc-checks' });
       const cls = {}; CASTER_CLASSES.forEach(k => { const l = kbox.createEl('label'); const cb = l.createEl('input', { type: 'checkbox' }); l.appendText(' ' + k); cls[k] = cb; lpSafe(l); });
+      g = sec('Effect');
       const desc = fEl(g, 'Effect', ta('', 'What happens? e.g. *Dexterity Saving Throw* … *Failure:* 3d6 Fire damage.', 6), true);
       const higher = fEl(g, 'Using a higher-level slot / cantrip upgrade', ta('', '', 2), true);
       this.build = () => {
@@ -1418,12 +1523,19 @@ class ItemBuilderModal extends Modal {
         return { fm, body };
       };
     }
-    // live preview
-    const prevWrap = c.createDiv({ cls: 'dmc-item-preview' });
-    const draw = async () => { if (!this.build) return; prevWrap.empty(); const { body } = this.build(); prevWrap.createEl('h4', { text: v.name() || 'Preview' }); const comp = new Component(); comp.load(); await renderMd(this.app, body.replace(/```dm-list[\s\S]*?```/g, ''), prevWrap, '', comp); };
+    // live preview — a parchment card in the same style as statblocks
+    const draw = async () => {
+      if (!this.build) return; prevWrap.empty();
+      const { body } = this.build();
+      const card = prevWrap.createDiv({ cls: 'dmc-itemcard' });
+      card.createDiv({ cls: 'dmc-itemcard-title', text: v.name() || 'Unnamed ' + (this.kind === 'item' ? 'magic item' : this.kind) });
+      card.createDiv({ cls: 'dmc-itemcard-rule' });
+      const comp = new Component(); comp.load();
+      await renderMd(this.app, body.replace(/```dm-list[\s\S]*?```/g, '').replace(/## Owned copies\s*$/m, '').replace(/## History & lore\s*$/m, ''), card.createDiv({ cls: 'dmc-itemcard-body' }), '', comp);
+    };
     const deb = obsidian.debounce ? obsidian.debounce(draw, 250, true) : draw;
-    g.addEventListener('input', deb); g.addEventListener('change', deb); draw();
-    const foot = c.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'margin-top:10px' } });
+    form.addEventListener('input', deb); form.addEventListener('change', deb); draw();
+    const foot = c.createDiv({ cls: 'dmc-row dmc-wrap dmc-builder-foot' });
     button(foot, 'Save to ' + (this.kind === 'spell' ? 'Spells' : 'Armory'), 'save', () => this.save(), 'mod-cta');
     button(foot, 'Cancel', null, () => this.close());
   }
@@ -1459,14 +1571,15 @@ Object.assign(DMCodexPlugin.prototype, {
       }, { value: '1', cta: 'Give' }).open();
     }, 'Give “' + file.basename + '” to…').open();
   },
-  renderArmory(body) {
+  renderArmory(body, view) {
     const bar = body.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'margin-bottom:8px' } });
-    button(bar, 'New weapon', 'sword', () => this.openItemBuilder('weapon'), 'mod-cta');
+    button(bar, 'New weapon', 'sword', () => this.openItemBuilder('weapon'));
     button(bar, 'New armor', 'shield', () => this.openItemBuilder('armor'));
     button(bar, 'New gear', 'backpack', () => this.openItemBuilder('gear'));
     button(bar, 'New magic item', 'gem', () => this.openItemBuilder('item'));
-    const inv = body.createDiv({ cls: 'dmc-card' }); inv.createEl('h4', { text: 'Party inventory' });
+    button(bar, 'Random armory', 'sparkles', () => new ArmoryGenModal(this).open());
     const owned = ['weapon', 'armor', 'gear', 'item'].flatMap(k => this.getNotes(k)).filter(f => String(this.fm(f).holder || '').trim());
+    const inv = view.collapsible(body, 'inventory', 'Party inventory', 'users', owned.length);
     if (!owned.length) inv.createDiv({ cls: 'dmc-muted', text: 'Nothing assigned yet. Open any Armory item and run “Give this item to a character”, or set its holder property.' });
     const groups = {}; owned.forEach(f => { const h = stripLinks(this.fm(f).holder); (groups[h] = groups[h] || []).push(f); });
     const grid = inv.createDiv({ cls: 'dmc-grid' });
@@ -1629,6 +1742,345 @@ Object.assign(DMCodexPlugin.prototype, {
     }
   },
 });
+
+/* ================================================================== */
+/* Random Armory — weapons, armor, gear and magic items                */
+/* ================================================================== */
+
+const ARMORY_RARITY_ORDER = ['mundane', 'common', 'uncommon', 'rare', 'very rare', 'legendary'];
+// rough 2024-style guidance on which rarities suit which tier of play
+const RARITY_BY_LEVEL = L => L <= 4 ? ['mundane', 'mundane', 'common', 'common', 'uncommon'] : L <= 10 ? ['mundane', 'common', 'uncommon', 'uncommon', 'rare'] : L <= 16 ? ['uncommon', 'rare', 'rare', 'very rare'] : ['rare', 'very rare', 'very rare', 'legendary'];
+const WEAPON_BONUS = { uncommon: 1, rare: 2, 'very rare': 3, legendary: 3 };
+const ARMOR_BONUS = { rare: 1, 'very rare': 2, legendary: 3 };
+const ENERGY = ['Fire', 'Cold', 'Lightning', 'Thunder', 'Acid', 'Poison', 'Necrotic', 'Radiant', 'Psychic', 'Force'];
+const ENERGY_WORD = { Fire: ['Ember', 'Flame', 'Cinder', 'Blaze'], Cold: ['Frost', 'Rime', 'Winter', 'Ice'], Lightning: ['Storm', 'Spark', 'Thunderhead', 'Lightning'], Thunder: ['Thunder', 'Peal', 'Echo', 'Roar'], Acid: ['Venom', 'Corrosion', 'Bile', 'Acid'], Poison: ['Viper', 'Nightshade', 'Venom', 'Blight'], Necrotic: ['Grave', 'Shadow', 'Dusk', 'Wither'], Radiant: ['Dawn', 'Sun', 'Halo', 'Glory'], Psychic: ['Dream', 'Whisper', 'Mind', 'Madness'], Force: ['Arcane', 'Star', 'Void', 'Force'] };
+const WEAPON_PROPS_BY_RARITY = {
+  common: ['It sheds Dim Light in a 10-foot radius while drawn, and you can douse or restore the light as a Bonus Action.', 'It never rusts, dulls or stains, and always looks freshly polished.', 'Its wielder always knows which way is north.', 'It hums a faint note when a lie is spoken within 10 feet.'],
+  uncommon: ['**Returning.** If it has the Thrown property, it flies back to your hand immediately after a ranged attack.', '**Warning.** While you carry it you can\'t be surprised, and you have Advantage on Initiative rolls.', '**{E}-touched.** On a hit it deals an extra 1d4 {T} damage.', '**Guardian.** While holding it, you can use a Reaction to add 1 to your AC against one attack you can see.'],
+  rare: ['**{E}brand.** On a hit it deals an extra 1d6 {T} damage.', '**Vicious.** When you roll a 20 on an attack roll with it, the target takes an extra 2d6 damage of the weapon\'s type.', '**Spell-bound (1/Day).** You can cast a 2nd-level spell from it — choose one fitting its theme (DC 15).', '**Life-stealing.** When you reduce a creature to 0 Hit Points with it, you gain 5 Temporary Hit Points.'],
+  'very rare': ['**{E}heart.** On a hit it deals an extra 2d6 {T} damage.', '**Dancing.** As a Bonus Action you can toss it into the air; it attacks on its own for up to 4 rounds, then returns.', '**Wounding.** Once per turn, a creature you hit takes an extra 1d4 Necrotic damage at the start of each of its turns until it uses an action to stanch the wound (DC 15 Wisdom (Medicine) check).'],
+  legendary: ['**{E}crown.** On a hit it deals an extra 2d6 {T} damage, and once per Long Rest you can unleash a 30-foot Cone (DC 18 Dexterity save, 8d8 {T} damage, half on a success).', '**Sharpness.** When you roll a 20 on an attack roll with it, the target takes an extra 4d6 damage of the weapon\'s type.', '**Sentient.** It has its own personality (Int 14, Wis 12, Cha 16), speaks Common, and wants something.'],
+};
+const ARMOR_PROPS_BY_RARITY = {
+  common: ['It is always clean and never needs repairs.', 'You can change its colour and style as a Bonus Action.'],
+  uncommon: ['**Mithral.** It has no Strength requirement and doesn\'t give Disadvantage on Dexterity (Stealth) checks.', '**Adamantine.** Any Critical Hit against you becomes a normal hit.'],
+  rare: ['**Resistance.** You have Resistance to {T} damage while you wear it. (Requires attunement.)', '**Mariner\'s.** You have a Swim Speed equal to your Speed while you wear it.'],
+  'very rare': ['**Resistance.** You have Resistance to {T} damage, and once per day you can use a Reaction to gain Immunity to it until the start of your next turn. (Requires attunement.)'],
+  legendary: ['**Invulnerable (1/Day).** As an action you gain Immunity to all nonmagical Bludgeoning, Piercing and Slashing damage for 10 minutes. (Requires attunement.)'],
+};
+const SUFFIXES = ['of the Watch', 'of the Ashen Crown', 'of the Deep', 'of Many Battles', 'of the Last Light', 'of Whispers', 'of the Old Kings', 'of the Hunt', 'of Mercy', 'of Ruin'];
+const MAKERS = ['dwarven', 'elven', 'giant-forged', 'hobgoblin', 'temple-blessed', 'ancient', 'pirate', 'royal-guard', 'orcish', 'gnomish'];
+
+Object.assign(DMCodexPlugin.prototype, {
+  armoryCatalog(type) {
+    const notes = this.getNotes(type).filter(f => !String(this.fm(f).holder || '').trim() && !this.fm(f).base && !/Magic Items/.test(f.path));
+    if (notes.length) return notes.map(f => ({ name: f.basename, fm: this.fm(f), file: f }));
+    // fallback if the catalog notes were deleted
+    if (type === 'weapon') return SHOP_DATA.smithy.mundane.filter(m => /Mastery/.test(m[2])).map(([n, gp, note]) => ({ name: n, fm: { category: 'Martial Melee', damage: '1d8', damage_type: 'Slashing', properties: [], mastery: note.replace('Mastery: ', ''), cost: fmtPrice(gp) } }));
+    if (type === 'armor') return SHOP_DATA.smithy.mundane.filter(m => /AC|\+2 AC/.test(m[2])).map(([n, gp, note]) => ({ name: n, fm: { category: /Shield/.test(n) ? 'Shield' : /Light/.test(note) ? 'Light' : /Medium/.test(note) ? 'Medium' : 'Heavy', ac: note, cost: fmtPrice(gp) } }));
+    return SHOP_DATA.general.mundane.map(([n, gp, note]) => ({ name: n, fm: { category: 'Adventuring Gear', cost: fmtPrice(gp) }, note }));
+  },
+  async armoryQuirk() { const t = await this.gatherTables(); const q = t.find(x => x.title === 'Magic item quirk'); return q ? pick(q.entries) : ''; },
+  /** Generate one random armory item. opts: { kind: any|weapon|armor|gear|item, rarity: level|any|mundane|common|…, level } */
+  async generateArmoryItem(opts) {
+    let kind = opts.kind && opts.kind !== 'any' ? opts.kind : pick(['weapon', 'weapon', 'armor', 'gear', 'item', 'item']);
+    let rarity = opts.rarity === 'level' ? pick(RARITY_BY_LEVEL(opts.level || 3)) : opts.rarity === 'any' || !opts.rarity ? pick(ARMORY_RARITY_ORDER) : opts.rarity;
+    if (kind === 'item' && rarity === 'mundane') rarity = 'common';
+    if (kind === 'gear' && rarity !== 'mundane' && rarity !== 'common') kind = 'item';
+    const T = pick(ENERGY), E = pick(ENERGY_WORD[T]);
+    const fill = s => s.replace(/\{T\}/g, T).replace(/\{E\}/g, E);
+    const quirk = rarity !== 'mundane' && Math.random() < 0.5 ? await this.armoryQuirk() : '';
+    const out = { kind, rarity, quirk };
+    if (kind === 'weapon') {
+      const base = pick(this.armoryCatalog('weapon'));
+      const bonus = WEAPON_BONUS[rarity] || 0;
+      const props = rarity === 'mundane' ? [] : [fill(pick(WEAPON_PROPS_BY_RARITY[rarity]))];
+      const prop = props[0] || '';
+      const themed = /\{E\}|brand|heart|crown|touched/.test(prop) || /extra \d+d\d+ \w+ damage/.test(prop);
+      out.name = rarity === 'mundane' ? (cap(pick(MAKERS)) + ' ' + base.name) : themed ? E + ' ' + base.name : bonus ? '+' + bonus + ' ' + base.name : base.name + ' ' + pick(SUFFIXES);
+      if (rarity !== 'mundane' && !themed && bonus && Math.random() < 0.4) out.name = '+' + bonus + ' ' + base.name + ' ' + pick(SUFFIXES);
+      out.base = base; out.bonus = bonus; out.props = props;
+      out.attunement = ['rare', 'very rare', 'legendary'].includes(rarity) && !!prop;
+      out.value = rarity === 'mundane' ? (base.fm.cost || '') : fmtPrice(RARITY_GP[rarity]);
+      out.summary = (base.fm.category || 'Weapon') + ' · ' + String(base.fm.damage || '').replace(/\s*\+.*$/, '') + (bonus ? ' + ' + bonus : '') + ' ' + (base.fm.damage_type || '');
+    } else if (kind === 'armor') {
+      const base = pick(this.armoryCatalog('armor'));
+      const bonus = ARMOR_BONUS[rarity] || 0;
+      const props = ['mundane'].includes(rarity) || (bonus && Math.random() < 0.5) ? [] : [fill(pick(ARMOR_PROPS_BY_RARITY[rarity] || ARMOR_PROPS_BY_RARITY.common))];
+      const prop = props[0] || '';
+      out.name = rarity === 'mundane' ? cap(pick(MAKERS)) + ' ' + base.name : /Mithral|Adamantine/.test(prop) ? prop.match(/Mithral|Adamantine/)[0] + ' ' + base.name : /Resistance/.test(prop) ? base.name + ' of ' + T + ' Resistance' : bonus ? '+' + bonus + ' ' + base.name : base.name + ' ' + pick(SUFFIXES);
+      out.base = base; out.bonus = bonus; out.props = props;
+      out.attunement = /attunement/i.test(prop);
+      out.value = rarity === 'mundane' ? (base.fm.cost || '') : fmtPrice(RARITY_GP[rarity]);
+      out.summary = (base.fm.category || 'Armor') + ' · AC ' + (base.fm.ac || '?') + (bonus ? ' (+' + bonus + ')' : '');
+    } else if (kind === 'gear') {
+      const base = pick(this.armoryCatalog('gear'));
+      out.base = base; out.qty = rollIn(pick(['1', '1', '{1d4}', '{1d6}', '{2d4}']));
+      out.name = rarity === 'common' ? cap(pick(MAKERS)) + ' ' + base.name : base.name;
+      out.props = rarity === 'common' ? [pick(['It is exceptionally well made and weighs half as much as usual.', 'It is decorated with a maker\'s mark the party may recognise.', 'It once belonged to a famous adventurer, and someone wants it back.'])] : [];
+      out.value = base.fm.cost || ''; out.summary = (base.fm.category || 'Gear') + (out.qty > 1 ? ' · ×' + out.qty : '');
+    } else {
+      const pool = Object.values(SHOP_DATA).flatMap(s => s.magic || []).filter((m, i, a) => a.findIndex(x => x[0] === m[0]) === i);
+      const fits = pool.filter(m => m[1] === rarity);
+      const m = fits.length ? pick(fits) : pick(pool);
+      out.rarity = m[1]; out.name = m[0]; out.consumable = m[2]; out.props = m[3] ? [m[3]] : [];
+      out.attunement = /Attunement/i.test(m[3] || '');
+      out.value = fmtPrice(RARITY_GP[m[1]] * (m[2] ? 0.5 : 1)); out.summary = (m[2] ? 'Consumable' : 'Magic item');
+    }
+    return out;
+  },
+  armoryItemMarkdown(it) {
+    const rar = it.rarity === 'mundane' ? 'mundane' : it.rarity + (it.attunement ? ', requires attunement' : '');
+    let md = '**' + it.name + '** — *' + it.summary + ' · ' + rar + '*' + (it.value ? ' · ' + it.value : '');
+    if (it.base && it.base.file) md += ' · base: [[' + it.base.name + ']]';
+    for (const p of it.props || []) md += '\n  - ' + p;
+    if (it.quirk) md += '\n  - *Quirk:* ' + it.quirk;
+    return md;
+  },
+  async saveArmoryItem(it, holder) {
+    const h = holder ? (holder === 'Party stash' ? 'Party stash' : '[[' + holder + ']]') : '';
+    const desc = (it.props || []).map(p => '- ' + p).join('\n') + (it.quirk ? '\n- **Quirk:** ' + it.quirk : '');
+    let fm, body;
+    if (it.kind === 'weapon') {
+      const b = it.base.fm;
+      fm = { type: 'weapon', category: b.category, damage: String(b.damage || '').replace(/\s*\+.*$/, '') + (it.bonus ? ' + ' + it.bonus : ''), damage_type: b.damage_type, properties: [].concat(b.properties || []), mastery: b.mastery || '', weight: b.weight || '', cost: it.value, magic_bonus: it.bonus || 0, rarity: it.rarity === 'mundane' ? '' : it.rarity, attunement: !!it.attunement, base: it.base.file ? '[[' + it.base.name + ']]' : '', holder: h, quantity: 1, source: 'Generated', tags: ['armory', 'weapon'] };
+      body = '> [!info] ' + b.category + ' weapon' + (fm.rarity ? ' · ' + fm.rarity : '') + (fm.attunement ? ' (requires attunement)' : '') + '\n> **Damage:** ' + fm.damage + ' ' + (b.damage_type || '') + (it.bonus ? ' · **+' + it.bonus + ' to attack and damage rolls**' : '') + '\n> **Properties:** ' + (fm.properties.join(', ') || '—') + '\n> **Mastery:** ' + (fm.mastery ? '[[Weapon Mastery|' + fm.mastery + ']]' : '—') + '\n> **Value:** ' + (it.value || '—') + '\n\n';
+    } else if (it.kind === 'armor') {
+      const b = it.base.fm;
+      const ac = it.bonus ? String(b.ac || '').replace(/^\+?(\d+)/, (m, n) => (m.startsWith('+') ? '+' : '') + (Number(n) + it.bonus)) : b.ac;
+      fm = { type: 'armor', category: b.category, ac, strength: /Mithral/.test(it.name) ? '' : (b.strength || ''), stealth: /Mithral/.test(it.name) ? '' : (b.stealth || ''), weight: b.weight || '', cost: it.value, magic_bonus: it.bonus || 0, rarity: it.rarity === 'mundane' ? '' : it.rarity, attunement: !!it.attunement, base: it.base.file ? '[[' + it.base.name + ']]' : '', holder: h, quantity: 1, source: 'Generated', tags: ['armory', 'armor'] };
+      body = '> [!info] ' + b.category + (b.category === 'Shield' ? '' : ' armor') + (fm.rarity ? ' · ' + fm.rarity : '') + '\n> **AC:** ' + ac + ' · **Strength:** ' + (fm.strength || '—') + ' · **Stealth:** ' + (fm.stealth || '—') + '\n> **Value:** ' + (it.value || '—') + '\n\n';
+    } else if (it.kind === 'gear') {
+      fm = { type: 'gear', category: it.base.fm.category || 'Adventuring Gear', cost: it.value, weight: it.base.fm.weight || '', base: it.base.file ? '[[' + it.base.name + ']]' : '', holder: h, quantity: Number(it.qty) || 1, source: 'Generated', tags: ['armory', 'gear'] };
+      body = '> [!info] ' + fm.category + '\n> **Cost:** ' + (it.value || '—') + ' · **Quantity:** ' + fm.quantity + '\n\n';
+    } else {
+      fm = { type: 'item', item_type: it.consumable ? 'Potion' : 'Wondrous Item', rarity: it.rarity, attunement: !!it.attunement, holder: h, value: it.value, source: 'Generated', tags: ['armory', 'item'] };
+      body = '*' + fm.item_type + ', ' + it.rarity + (it.attunement ? ' (requires attunement)' : '') + '*\n\n**Value:** ' + it.value + '\n\n';
+    }
+    body += '## Properties\n' + (desc || '- ') + '\n\n## History & lore\n- \n';
+    const file = await this.createNote(it.kind, it.name, { raw: fmBlock(fm) + '# ' + it.name + '\n\n' + body, noOpen: true });
+    return file;
+  },
+  renderArmoryGenWidget(container, sourcePath, onDone) {
+    const wrap = container.createDiv({ cls: 'dmc-sq dmc-armorygen' }); lpSafe(wrap);
+    const ctr = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
+    const mk = (opts, val, label) => { const w = ctr.createDiv({ cls: 'dmc-f dmc-inline' }); w.createEl('label', { text: label }); const s = w.createEl('select', { cls: 'dropdown' }); opts.forEach(([v, l]) => s.createEl('option', { value: v, text: l })); s.value = val; lpSafe(s); return s; };
+    const party = this.getNotes('player').filter(f => (this.fm(f).status || 'active') === 'active').map(f => Number(this.fm(f).level) || 1);
+    const avg = party.length ? Math.round(party.reduce((a, b) => a + b, 0) / party.length) : 3;
+    const kindSel = mk([['any', 'Anything'], ['weapon', 'Weapon'], ['armor', 'Armor'], ['gear', 'Gear'], ['item', 'Magic item']], 'any', 'Type');
+    const rarSel = mk([['level', 'Suit party level'], ['any', 'Any rarity'], ['mundane', 'Mundane'], ['common', 'Common'], ['uncommon', 'Uncommon'], ['rare', 'Rare'], ['very rare', 'Very rare'], ['legendary', 'Legendary']], 'level', 'Rarity');
+    const lvlSel = mk(Array.from({ length: 20 }, (_, i) => [String(i + 1), 'Level ' + (i + 1)]), String(avg), 'Party level');
+    const cntSel = mk(['1', '2', '3', '4', '5', '6'].map(n => [n, n]), '3', 'How many');
+    const sync = () => { lvlSel.parentElement.style.display = rarSel.value === 'level' ? '' : 'none'; }; rarSel.addEventListener('change', sync); sync();
+    const out = wrap.createDiv({ cls: 'dmc-armorygen-out' });
+    const foot = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
+    let items = [];
+    const opts = () => ({ kind: kindSel.value, rarity: rarSel.value, level: Number(lvlSel.value) });
+    const draw = async () => {
+      out.empty();
+      if (!items.length) { out.createDiv({ cls: 'dmc-muted', text: 'Pick a type and rarity, then Generate.' }); return; }
+      const comp = new Component(); comp.load();
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        const card = out.createDiv({ cls: 'dmc-loot rarity-' + it.rarity.replace(' ', '-') });
+        const head = card.createDiv({ cls: 'dmc-loot-head' });
+        head.createSpan({ cls: 'dmc-loot-name', text: it.name });
+        head.createSpan({ cls: 'dmc-pill dmc-rarity', text: it.rarity + (it.attunement ? ' · attunement' : '') });
+        card.createDiv({ cls: 'dmc-muted', text: it.summary + (it.value ? ' · ' + it.value : '') });
+        if ((it.props && it.props.length) || it.quirk) { const d = card.createDiv({ cls: 'dmc-loot-props' }); await renderMd(this.app, (it.props || []).map(p => '- ' + p).join('\n') + (it.quirk ? '\n- *Quirk:* ' + it.quirk : ''), d, sourcePath || '', comp); }
+        const row = card.createDiv({ cls: 'dmc-row dmc-wrap' });
+        button(row, 'Reroll', 'refresh-cw', async () => { items[i] = await this.generateArmoryItem(Object.assign(opts(), { kind: kindSel.value === 'any' ? 'any' : it.kind })); draw(); });
+        button(row, 'Save to Armory', 'file-plus', async () => { const f = await this.saveArmoryItem(it); if (f) { it.saved = f; new Notice('Saved to Armory: ' + f.basename); } });
+        button(row, 'Give to…', 'hand', () => {
+          const targets = [...this.getNotes('player'), { basename: 'Party stash', stash: true }];
+          new NoteSuggestModal(this.app, targets, async who => { const f = await this.saveArmoryItem(it, who.basename); if (f) new Notice(f.basename + ' → ' + who.basename); }, 'Give “' + it.name + '” to…').open();
+        });
+      }
+    };
+    const gen = async () => { items = []; for (let i = 0; i < Number(cntSel.value); i++) items.push(await this.generateArmoryItem(opts())); draw(); };
+    button(ctr, 'Generate', 'sparkles', gen, 'mod-cta');
+    button(foot, 'Save all to Armory', 'save', async () => { for (const it of items) await this.saveArmoryItem(it); if (items.length) new Notice('Saved ' + items.length + ' item(s) to the Armory'); });
+    button(foot, 'Insert into note', 'text-cursor-input', () => {
+      if (!items.length) return; const md = '**Loot**\n' + items.map(it => '- ' + this.armoryItemMarkdown(it)).join('\n');
+      const ed = this.app.workspace.activeEditor && this.app.workspace.activeEditor.editor;
+      if (ed) { ed.replaceSelection('\n' + md + '\n'); if (onDone) onDone(); } else new Notice('Open a note first.');
+    });
+    draw();
+  },
+});
+
+class ArmoryGenModal extends Modal {
+  constructor(plugin) { super(plugin.app); this.plugin = plugin; }
+  onOpen() { this.contentEl.addClass('dmc-modal', 'dmc-wide'); this.contentEl.createEl('h3', { text: 'Random armory' }); this.plugin.renderArmoryGenWidget(this.contentEl, null, () => this.close()); }
+  onClose() { this.contentEl.empty(); }
+}
+
+/* ================================================================== */
+/* Spell browser (filters) and random spell generator                  */
+/* ================================================================== */
+
+// 2014 DMG "Spell Damage" guidance: [single target, multiple targets] by spell level
+const SPELL_DMG = [['1d10', '1d6'], ['2d10', '2d6'], ['3d10', '4d6'], ['5d10', '6d6'], ['6d10', '7d6'], ['8d10', '8d6'], ['10d10', '11d6'], ['11d10', '12d6'], ['12d10', '13d6'], ['15d10', '14d6']];
+const SPELL_SAVE_FOR = { Fire: 'Dexterity', Lightning: 'Dexterity', Acid: 'Dexterity', Cold: 'Constitution', Thunder: 'Constitution', Poison: 'Constitution', Necrotic: 'Constitution', Radiant: 'Dexterity', Psychic: 'Intelligence', Force: 'Strength' };
+const SCHOOL_DMG = { Evocation: ['Fire', 'Cold', 'Lightning', 'Thunder', 'Force', 'Radiant'], Necromancy: ['Necrotic', 'Poison'], Conjuration: ['Acid', 'Poison', 'Force', 'Fire'], Enchantment: ['Psychic'], Illusion: ['Psychic'], Transmutation: ['Acid', 'Thunder', 'Cold'], Abjuration: ['Radiant', 'Force'], Divination: ['Psychic', 'Radiant'] };
+const SCHOOL_CLASSES = { Evocation: ['Sorcerer', 'Wizard'], Necromancy: ['Warlock', 'Wizard'], Enchantment: ['Bard', 'Sorcerer', 'Warlock', 'Wizard'], Illusion: ['Bard', 'Sorcerer', 'Wizard'], Conjuration: ['Druid', 'Sorcerer', 'Wizard'], Abjuration: ['Cleric', 'Paladin', 'Wizard'], Divination: ['Bard', 'Cleric', 'Wizard'], Transmutation: ['Druid', 'Sorcerer', 'Wizard'] };
+const SPELL_NOUNS = { attack: ['Bolt', 'Lance', 'Ray', 'Dart', 'Spear', 'Arrow', 'Touch'], area: ['Burst', 'Wave', 'Nova', 'Storm', 'Bloom', 'Rain', 'Breath'], control: ['Chains', 'Grasp', 'Veil', 'Song', 'Gaze', 'Snare', 'Word'], utility: ['Ward', 'Step', 'Sight', 'Mantle', 'Whisper', 'Sigil', 'Lantern'], heal: ['Mending', 'Grace', 'Balm', 'Renewal', 'Benediction', 'Bloom'] };
+const CONDITION_SAVES = [['Frightened', 'Wisdom'], ['Charmed', 'Wisdom'], ['Restrained', 'Strength'], ['Blinded', 'Constitution'], ['Prone', 'Strength'], ['Incapacitated', 'Wisdom'], ['Poisoned', 'Constitution'], ['Deafened', 'Constitution']];
+const RIDERS = { Evocation: 'and is pushed up to 10 feet away from you', Necromancy: 'and it can\'t regain Hit Points until the start of your next turn', Enchantment: 'and it has Disadvantage on the next attack roll it makes before the end of its next turn', Illusion: 'and you are [[Invisible]] to it until the start of your next turn', Conjuration: 'and you can pull it up to 10 feet toward you', Transmutation: 'and its Speed is reduced by 10 feet until the start of your next turn', Abjuration: 'and you gain Temporary Hit Points equal to your spellcasting ability modifier', Divination: 'and the next attack roll against it before the end of your next turn has Advantage' };
+const UTILITY_EFFECTS = [
+  ['1 hour', false, 'A willing creature you touch gains Darkvision out to 60 feet (or extends its Darkvision by 30 feet) for the duration.'],
+  ['1 hour', false, 'A willing creature you touch has Resistance to {T} damage for the duration.'],
+  ['10 minutes', true, 'Up to three creatures you can see gain a +10-foot bonus to Speed and can take the Disengage action as a Bonus Action.'],
+  ['1 minute', true, 'A creature you touch adds 1d4 to its saving throws for the duration.'],
+  ['8 hours', false, 'You ward a door, window or chest. The first creature other than you to open it triggers a soundless alarm you can hear within 1 mile.'],
+  ['1 hour', true, 'You can see and hear through the eyes and ears of one willing creature you touch, using an action to switch between its senses and your own.'],
+  ['Instantaneous', false, 'You teleport up to 30 feet to an unoccupied space you can see, leaving a puff of {E}-coloured smoke behind.'],
+  ['10 minutes', true, 'You create a 10-foot-radius dome of shimmering force. Creatures inside have Half Cover against attacks from outside.'],
+];
+
+Object.assign(DMCodexPlugin.prototype, {
+  spellRows() {
+    return this.getNotes('spell').map(f => { const fm = this.fm(f); return { f, name: f.basename, level: Number(fm.level) || 0, school: String(fm.school || ''), time: String(fm.casting_time || ''), range: String(fm.range || ''), conc: fm.concentration === true || fm.concentration === 'true', ritual: fm.ritual === true || fm.ritual === 'true', classes: [].concat(fm.classes || []).map(String) }; });
+  },
+  /** Spell browser with filters — used by the Spells tab and the ```spell-browser``` block. */
+  renderSpellBrowser(container, sourcePath) {
+    const wrap = container.createDiv({ cls: 'dmc-spellbrowser' }); lpSafe(wrap);
+    const F = { q: '', level: '', school: '', time: '', cls: '', conc: '', ritual: '' };
+    const bar = wrap.createDiv({ cls: 'dmc-filterbar' });
+    const mk = (label, key, opts) => { const w = bar.createDiv({ cls: 'dmc-f' }); w.createEl('label', { text: label }); const s = w.createEl('select', { cls: 'dropdown' }); opts.forEach(([v, l]) => s.createEl('option', { value: v, text: l })); lpSafe(s); s.addEventListener('change', () => { F[key] = s.value; draw(); }); return s; };
+    const sw = bar.createDiv({ cls: 'dmc-f dmc-f-search' }); sw.createEl('label', { text: 'Search' });
+    const search = sw.createEl('input', { type: 'search', attr: { placeholder: 'Name or text…' } }); lpSafe(search);
+    search.addEventListener('input', () => { F.q = search.value.toLowerCase(); draw(); });
+    const sels = [
+      mk('Level', 'level', [['', 'Any'], ['0', 'Cantrip'], ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [String(n), 'Level ' + n])]),
+      mk('School', 'school', [['', 'Any'], ...SCHOOLS.map(s => [s, s])]),
+      mk('Casting time', 'time', [['', 'Any'], ['Action', 'Action'], ['Bonus Action', 'Bonus Action'], ['Reaction', 'Reaction'], ['long', '1 minute or longer']]),
+      mk('Class', 'cls', [['', 'Any'], ...CASTER_CLASSES.map(c => [c, c])]),
+      mk('Concentration', 'conc', [['', 'Any'], ['yes', 'Yes'], ['no', 'No']]),
+      mk('Ritual', 'ritual', [['', 'Any'], ['yes', 'Ritual only']]),
+    ];
+    const tools = wrap.createDiv({ cls: 'dmc-row dmc-wrap dmc-spell-tools' });
+    const count = tools.createSpan({ cls: 'dmc-muted' });
+    button(tools, 'Clear filters', 'x', () => { Object.keys(F).forEach(k => F[k] = ''); search.value = ''; sels.forEach(s => s.value = ''); draw(); });
+    button(tools, 'Random spell from these', 'dices', () => {
+      const r = filtered(); if (!r.length) { new Notice('No spells match the filters.'); return; }
+      const s = pick(r); this.app.workspace.openLinkText(s.f.path, sourcePath || '', true); new Notice('🎲 ' + s.name + ' (' + (s.level ? 'level ' + s.level : 'cantrip') + ')');
+    });
+    button(tools, 'New spell', 'plus', () => this.openItemBuilder('spell'));
+    button(tools, 'Spell generator', 'sparkles', () => new SpellGenModal(this).open());
+    const table = wrap.createDiv({ cls: 'dmc-spell-table' });
+    const filtered = () => this.spellRows().filter(r =>
+      (!F.q || (r.name + ' ' + r.school + ' ' + r.classes.join(' ')).toLowerCase().includes(F.q)) &&
+      (F.level === '' || r.level === Number(F.level)) && (!F.school || r.school === F.school) &&
+      (!F.time || (F.time === 'long' ? /minute|hour/i.test(r.time) : r.time.startsWith(F.time))) &&
+      (!F.cls || r.classes.includes(F.cls)) && (!F.conc || (F.conc === 'yes') === r.conc) && (!F.ritual || r.ritual)
+    ).sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+    const draw = () => {
+      table.empty(); const rows = filtered();
+      count.setText(rows.length + ' spell' + (rows.length === 1 ? '' : 's'));
+      if (!rows.length) { table.createDiv({ cls: 'dmc-muted', text: 'No spells match these filters.' }); return; }
+      const t = table.createEl('table', { cls: 'dmc-table' });
+      const hr = t.createEl('thead').createEl('tr'); ['Spell', 'Level', 'School', 'Casting time', 'Range', 'Conc.', 'Classes'].forEach(h => hr.createEl('th', { text: h }));
+      const tb = t.createEl('tbody');
+      rows.forEach(r => {
+        const tr = tb.createEl('tr');
+        const a = tr.createEl('td').createEl('a', { cls: 'internal-link', text: r.name }); a.addEventListener('click', e => { e.preventDefault(); this.app.workspace.openLinkText(r.f.path, sourcePath || '', Keymap.isModEvent(e)); });
+        tr.createEl('td', { text: r.level ? String(r.level) : 'Cantrip' }); tr.createEl('td', { text: r.school });
+        tr.createEl('td', { text: r.time.replace(/,.*$/, '') + (r.ritual ? ' (R)' : '') }); tr.createEl('td', { text: r.range });
+        tr.createEl('td', { text: r.conc ? '✓' : '' }); tr.createEl('td', { text: r.classes.join(', ') });
+      });
+    };
+    draw();
+  },
+  /** Invent a new spell. opts: { level, school, style: attack|area|control|utility|heal|any, damage } */
+  generateSpell(opts) {
+    const L = opts.level === '' || opts.level == null ? Math.floor(Math.random() * 6) : Number(opts.level);
+    const school = opts.school || pick(SCHOOLS);
+    let style = opts.style && opts.style !== 'any' ? opts.style : pick(['attack', 'area', 'area', 'control', 'utility', 'heal']);
+    if (L === 0 && (style === 'heal' || style === 'utility')) style = pick(['attack', 'area']);
+    const T = opts.damage || pick(SCHOOL_DMG[school] || ENERGY);
+    const E = pick(ENERGY_WORD[T] || ['Arcane']);
+    const noun = pick(SPELL_NOUNS[style]);
+    const owner = Math.random() < 0.3 ? pick(NPC_TABLES.first) + '\'s ' : '';
+    const name = owner + (style === 'heal' ? pick(['Gentle', 'Radiant', 'Verdant', 'Soothing', 'Dawn']) : style === 'utility' ? pick(['Hidden', 'Silver', 'Wanderer\'s', 'Quiet', 'Arcane']) : E) + ' ' + noun;
+    const dmg = SPELL_DMG[Math.min(9, L)];
+    const s = { name, level: L, school, classes: [...(SCHOOL_CLASSES[school] || ['Wizard'])], ritual: false, concentration: false, casting_time: 'Action', range: '60 feet', components: 'V, S', duration: 'Instantaneous', effect: '', higher: '' };
+    if (style === 'attack') {
+      s.range = pick(['60 feet', '90 feet', '120 feet', 'Touch']);
+      const melee = s.range === 'Touch';
+      s.effect = 'Make a ' + (melee ? 'melee' : 'ranged') + ' spell attack against a creature' + (melee ? '' : ' within range') + '. On a hit, the target takes ' + dmg[0] + ' ' + T + ' damage ' + RIDERS[school] + '.';
+      s.higher = L === 0 ? 'Damage increases by ' + dmg[0].replace(/^\d+/, '1') + ' at levels 5, 11 and 17.' : '+1d10 damage per slot level above ' + L + '.';
+    } else if (style === 'area') {
+      const shape = pick(L <= 1 ? ['Self (15-foot Cone)', 'Self (15-foot Cube)', '60 feet|5-foot-radius Sphere'] : L <= 3 ? ['Self (30-foot Cone)', '120 feet|20-foot-radius Sphere', 'Self (60-foot Line)', '90 feet|15-foot Cube'] : ['Self (60-foot Cone)', '150 feet|20-foot-radius Sphere', 'Self (100-foot Line)', '120 feet|30-foot Cube']);
+      const [rng, area] = shape.includes('|') ? shape.split('|') : [shape, shape.match(/\((.*)\)/)[1]];
+      s.range = rng; const save = SPELL_SAVE_FOR[T] || 'Dexterity';
+      s.effect = 'Each creature in a ' + area + (shape.includes('|') ? ' centred on a point you choose within range' : '') + ' makes a *' + save + ' saving throw*, taking ' + dmg[1] + ' ' + T + ' damage on a failed save, or half as much on a success.';
+      s.higher = L === 0 ? 'Damage increases by 1d6 at levels 5, 11 and 17.' : '+1d6 damage per slot level above ' + L + '.';
+    } else if (style === 'control') {
+      const [cond, save] = pick(CONDITION_SAVES);
+      s.concentration = L > 0; s.duration = L > 0 ? '1 minute' : '1 round'; s.range = pick(['30 feet', '60 feet', '90 feet']);
+      const targets = L >= 4 ? 'Each creature of your choice in a 20-foot-radius Sphere within range' : 'One creature you can see within range';
+      s.effect = targets + ' makes a *' + save + ' saving throw*. On a failure it has the [[' + cond + ']] condition for the duration' + (L > 0 ? '. It repeats the save at the end of each of its turns, ending the effect on itself on a success' : '') + (L >= 2 ? ', and it takes ' + SPELL_DMG[Math.max(0, L - 2)][0] + ' ' + T + ' damage each time it fails' : '') + '.';
+      s.higher = L === 0 ? '' : 'You can target one additional creature for each slot level above ' + L + '.';
+    } else if (style === 'utility') {
+      const [dur, conc, text] = pick(UTILITY_EFFECTS);
+      s.duration = dur; s.concentration = conc; s.range = /touch/i.test(text) ? 'Touch' : /You teleport/.test(text) ? 'Self' : '30 feet';
+      s.casting_time = /teleport/.test(text) ? 'Bonus Action' : pick(['Action', 'Action', '1 minute']);
+      s.ritual = s.casting_time !== 'Bonus Action' && !conc && Math.random() < 0.4;
+      s.effect = text.replace(/\{T\}/g, T).replace(/\{E\}/g, E.toLowerCase());
+      s.higher = 'The duration doubles for each slot level above ' + L + '.';
+    } else {
+      const bonus = Math.random() < 0.5;
+      s.casting_time = bonus ? 'Bonus Action' : 'Action'; s.range = bonus ? '60 feet' : 'Touch';
+      s.classes = ['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger'].filter(() => Math.random() < 0.7); if (!s.classes.length) s.classes = ['Cleric'];
+      const dice = bonus ? (2 * L) + 'd4' : (2 * L) + 'd8';
+      s.effect = (L >= 3 ? 'Up to three creatures' : 'A creature') + (bonus ? ' you can see within range' : ' you touch') + ' regain' + (L >= 3 ? '' : 's') + ' Hit Points equal to ' + dice + ' plus your spellcasting ability modifier' + (L >= 2 ? ', and ' + (L >= 3 ? 'each' : 'it') + ' can end one of these conditions on itself: [[Poisoned]], [[Frightened]] or [[Charmed]]' : '') + '.';
+      s.higher = 'Healing increases by ' + (bonus ? '2d4' : '2d8') + ' per slot level above ' + L + '.';
+    }
+    if (Math.random() < 0.35 && L > 0) s.components = 'V, S, M (' + pick(['a pinch of ash', 'a sliver of silver', 'a drop of blood', 'a feather', 'a polished stone', 'a vial of ' + T.toLowerCase() + '-touched water']) + ')';
+    return s;
+  },
+  spellMarkdown(s) {
+    const sub = s.level === 0 ? s.school + ' Cantrip' : 'Level ' + s.level + ' ' + s.school + (s.ritual ? ' (Ritual)' : '');
+    const dur = (s.concentration ? 'Concentration, up to ' : '') + s.duration;
+    return '*' + sub + ' (' + s.classes.join(', ') + ')*\n\n> [!info] Casting\n> **Casting Time:** ' + s.casting_time + (s.ritual ? ' or Ritual' : '') + '\n> **Range:** ' + s.range + '\n> **Components:** ' + s.components + '\n> **Duration:** ' + dur + '\n\n' + s.effect + '\n' + (s.higher ? '\n**' + (s.level === 0 ? 'Cantrip Upgrade' : 'Using a Higher-Level Spell Slot') + '.** ' + s.higher + '\n' : '');
+  },
+  async saveGeneratedSpell(s) {
+    const fm = { type: 'spell', level: s.level, school: s.school, casting_time: s.casting_time, range: s.range, components: s.components, duration: (s.concentration ? 'Concentration, up to ' : '') + s.duration, concentration: s.concentration, ritual: s.ritual, classes: s.classes, source: 'Generated', tags: ['spell'] };
+    return this.createNote('spell', s.name, { raw: fmBlock(fm) + '# ' + s.name + '\n\n' + this.spellMarkdown(s) });
+  },
+  renderSpellGenWidget(container, sourcePath, onDone) {
+    const wrap = container.createDiv({ cls: 'dmc-sq dmc-spellgen' }); lpSafe(wrap);
+    const ctr = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
+    const mk = (label, opts, val) => { const w = ctr.createDiv({ cls: 'dmc-f dmc-inline' }); w.createEl('label', { text: label }); const s = w.createEl('select', { cls: 'dropdown' }); opts.forEach(([v, l]) => s.createEl('option', { value: v, text: l })); s.value = val; lpSafe(s); return s; };
+    const lvl = mk('Level', [['', 'Any (0–5)'], ['0', 'Cantrip'], ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => [String(n), 'Level ' + n])], '');
+    const sch = mk('School', [['', 'Any'], ...SCHOOLS.map(s => [s, s])], '');
+    const sty = mk('Style', [['any', 'Any'], ['attack', 'Spell attack'], ['area', 'Area damage'], ['control', 'Control / condition'], ['utility', 'Utility'], ['heal', 'Healing']], 'any');
+    const dmgT = mk('Damage type', [['', 'Any'], ...ENERGY.map(e => [e, e])], '');
+    const out = wrap.createDiv({ cls: 'dmc-spellgen-out' });
+    const foot = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
+    let sp = null;
+    const draw = async () => {
+      out.empty(); if (!sp) { out.createDiv({ cls: 'dmc-muted', text: 'Choose a level, school and style, then Generate.' }); return; }
+      out.createDiv({ cls: 'dmc-spellgen-name', text: sp.name });
+      const comp = new Component(); comp.load(); await renderMd(this.app, this.spellMarkdown(sp), out.createDiv(), sourcePath || '', comp);
+    };
+    const gen = () => { sp = this.generateSpell({ level: lvl.value, school: sch.value, style: sty.value, damage: dmgT.value }); draw(); };
+    button(ctr, 'Generate', 'sparkles', gen, 'mod-cta');
+    button(foot, 'Save as spell', 'file-plus', async () => { if (!sp) return; await this.saveGeneratedSpell(sp); if (onDone) onDone(); });
+    button(foot, 'Insert into note', 'text-cursor-input', () => {
+      if (!sp) return; const ed = this.app.workspace.activeEditor && this.app.workspace.activeEditor.editor;
+      if (ed) { ed.replaceSelection('\n### ' + sp.name + '\n' + this.spellMarkdown(sp) + '\n'); if (onDone) onDone(); } else new Notice('Open a note first.');
+    });
+    draw();
+  },
+});
+
+class SpellGenModal extends Modal {
+  constructor(plugin) { super(plugin.app); this.plugin = plugin; }
+  onOpen() { this.contentEl.addClass('dmc-modal', 'dmc-wide'); this.contentEl.createEl('h3', { text: 'Random spell generator' }); this.plugin.renderSpellGenWidget(this.contentEl, null, () => this.close()); }
+  onClose() { this.contentEl.empty(); }
+}
 
 /* @@CONTENT_PACK_START@@ */
 const EMBEDDED_CONTENT_PACK = null; // filled in by tools/build.py

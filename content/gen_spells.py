@@ -224,6 +224,17 @@ tags: [rule/magic]
 
 ```dm-actions
 spell
+spellgen
+```
+
+## Browse & filter
+Filter by level, school, casting time, class, concentration and ritual, or pick a random spell that matches:
+```spell-browser
+```
+
+## Random spell generator
+Invent a new spell for a chosen level, school and style (attack, area, control, utility, healing). Damage follows the DMG's spell-damage guidance by level.
+```spell-generator
 ```
 
 A quick-reference selection of commonly used spells from the 2024 rules (SRD 5.2), plus any homebrew spells you add with **DM Codex: New Spell**. Every spell is a note, so `[[Fireball]]` works anywhere — in statblocks, sessions and character notes. The dashboard's **Spells** tab has a searchable list.

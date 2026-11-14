@@ -1,7 +1,7 @@
 {
   "id": "dm-codex",
   "name": "DM Codex",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "minAppVersion": "1.4.0",
   "description": "D&D (2024) campaign toolkit for Dungeon Masters: dashboard, sessions, party, NPCs, places, quests, armory and inventory, spells, taverns & shops, random tables, side quest and NPC generators. Works in Live Preview.",
   "author": "bearbaitdesigns",

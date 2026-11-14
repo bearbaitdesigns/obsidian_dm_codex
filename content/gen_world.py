@@ -116,13 +116,13 @@ fields: [cr, creature_type, environment, source]
 type: monster
 villain: true
 fields: [cr, creature_type, status]
-empty: None yet — use the Build a villain button.
+empty: None yet — use the Monster/Villain builder and set Kind to Villain.
 ```
 
 ## Create
 ```monster-tools
 ```
-- **Build a monster / villain** opens a form with a live 2024 statblock preview: CR guidance (typical AC, HP, attack bonus, save DC and damage per round), hit-point calculator, ability scores with save proficiencies, and helpers that write 2024-style **attack** and **saving-throw** entries for you (pull weapons straight from the [[Armory Index|Armory]]). Saving adds it to this Bestiary.
+- **Monster/Villain builder** (set *Kind* to Villain for bad guys) opens a form with a live 2024 statblock preview: CR guidance (typical AC, HP, attack bonus, save DC and damage per round), hit-point calculator, ability scores with save proficiencies, and helpers that write 2024-style **attack** and **saving-throw** entries for you (pull weapons straight from the [[Armory Index|Armory]]). Saving adds it to this Bestiary.
 - **Random monster** asks for your party's level, size and the difficulty you want (or a CR), plus creature type, role (brute, skirmisher, controller, leader) and whether it's a boss with legendary actions — then builds a full statblock you can tweak, save, or drop into combat.
 - **CR check:** the builder and the random monster generator compare the CR you picked with the CR the stats actually support (defensive CR from HP/AC/resistances, offensive CR from damage per round and attack bonus or save DC) and offer a one-click fix. The random monster form also shows the suggested CR for your party settings as you change them.
 - **Edit** any statblock from its header button.

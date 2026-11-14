@@ -149,15 +149,21 @@ weapon
 armor
 gear
 item
+armorygen
 give
 ```
 
 Every weapon, armor, gear and magic item is a note. **Catalog** entries (no `holder`) are the 2024 equipment reference. **Owned** copies have a `holder` (a player character link, or `Party stash`) and a `base` link back to the catalog entry.
 
 - **Give an item:** open any catalog item → command palette → *DM Codex: Give this item to a character*. A copy is created and linked to the character and to the catalog entry.
+- **Random armory:** weapons, armor, gear and magic items with rarity to suit your party's level. Save them or give them straight to a character.
 - **New / homebrew items:** the buttons above (or *DM Codex: New Weapon*, *New Armor*, *New Gear*, *New Magic Item*) open a form with a live preview.
 - **Monster attacks:** in the monster builder, *Attack…* → *From Armory* fills in the weapon's dice, type and range.
 - The dashboard's **Armory** tab shows the whole party inventory grouped by character.
+
+## Random armory
+```random-armory
+```
 
 ## Party inventory
 ```dm-list

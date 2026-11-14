@@ -134,3 +134,107 @@ body .callout[data-callout="read-aloud"] .callout-content { font-style: italic; 
 .dmc-upd-row { display:flex; align-items:center; gap:6px; padding:2px 0; font-size: var(--font-ui-small); flex-wrap:wrap; }
 .dmc-upd-path { flex:1; min-width: 200px; }
 .dmc-pack-preview { max-height: 65vh; overflow:auto; }
+/* Quick create — grouped, uniform buttons */
+.dmc-quick { container-type: inline-size; }
+.dmc-quick > h4 { font-size: 1.2em; margin-bottom: 10px; }
+.dmc-qgroups { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:10px; }
+@container (max-width: 720px) { .dmc-qgroups { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container (max-width: 460px) { .dmc-qgroups { grid-template-columns: minmax(0, 1fr); } }
+.dmc-qgroup { background: var(--background-primary); border:1px solid var(--background-modifier-border); border-radius:8px; padding:8px 10px 10px; }
+.dmc-qgroup-title { display:flex; align-items:center; gap:6px; font-size: var(--font-ui-smaller); font-weight:700; text-transform: uppercase; letter-spacing:.05em; color: var(--text-muted); margin-bottom:6px; }
+.dmc-qgroup-icon { display:inline-flex; color: var(--text-accent); }
+.dmc-qgroup-icon svg { width:14px; height:14px; }
+.dmc-qgrid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:6px; }
+.dmc-btn.dmc-qbtn { margin:0; width:100%; height:32px; justify-content:flex-start; padding:0 10px; white-space:nowrap; overflow:hidden; }
+.dmc-btn.dmc-qbtn > span:last-child { overflow:hidden; text-overflow:ellipsis; }
+.dmc-btn.dmc-qbtn .dmc-btn-icon { flex:none; color: var(--text-accent); }
+
+/* Rounded corners on every DM Codex button (themes sometimes square them off) */
+.dmc-btn, .dmc-dashboard button, .dmc-block button, .dmc-modal button, .dmc-sq button,
+.dmc-dashboard select, .dmc-block select, .dmc-modal select { border-radius: 8px !important; }
+
+/* ---------- Builders (weapon, armor, gear, magic item, spell): same layout as the Monster/Villain builder ---------- */
+.modal.dmc-builder-modal { width: min(1100px, 96vw); max-width: 96vw; }
+.dmc-builder { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap:16px; }
+.dmc-builder-form { max-height: 62vh; overflow:auto; padding-right:6px; }
+.dmc-builder-preview { max-height: 62vh; overflow:auto; }
+@media (max-width: 820px) { .dmc-builder { grid-template-columns: 1fr; } .dmc-builder-form, .dmc-builder-preview { max-height:none; } }
+.dmc-sec { font-weight:700; margin:14px 0 6px; color: var(--text-accent); font-size: var(--font-ui-small); text-transform: uppercase; letter-spacing:.05em; }
+.dmc-builder-form > .dmc-sec:first-child { margin-top:0; }
+.dmc-builder-foot { margin-top:12px; border-top:1px solid var(--background-modifier-border); padding-top:10px; }
+/* parchment card, matching DM Statblocks */
+.dmc-itemcard { --ic-accent:#7a200d; --ic-bg:#fdf1dc; --ic-text:#1d1d1d; background: var(--ic-bg); color: var(--ic-text); border-top:4px solid #e69a28; border-bottom:4px solid #e69a28; box-shadow: 0 1px 6px rgba(0,0,0,.25); padding:10px 14px; line-height:1.45; }
+.theme-dark .dmc-itemcard { --ic-accent:#e0795f; --ic-bg:#2a2420; --ic-text:#eadfcf; border-color:#b06f1a; }
+.dmc-itemcard-title { font-size:1.6em; font-weight:700; color: var(--ic-accent); font-variant: small-caps; letter-spacing:.02em; }
+.dmc-itemcard-rule { height:3px; background: linear-gradient(to right, var(--ic-accent), transparent); margin:4px 0 8px; }
+.dmc-itemcard-body { color: var(--ic-text); }
+.dmc-itemcard-body h2 { font-size:1.1em; font-variant: small-caps; color: var(--ic-accent); border-bottom:1px solid var(--ic-accent); margin:10px 0 4px; }
+.dmc-itemcard-body p { margin:4px 0; }
+.dmc-itemcard-body em, .dmc-itemcard-body i { color: var(--ic-text); }
+.dmc-itemcard-body strong, .dmc-itemcard-body b { color: var(--ic-accent); }
+.dmc-itemcard .callout { --callout-color: 122, 32, 13; background: rgba(122,32,13,.07) !important; border-left: 3px solid var(--ic-accent) !important; margin:6px 0; }
+.theme-dark .dmc-itemcard .callout { --callout-color: 224, 121, 95; background: rgba(224,121,95,.08) !important; }
+.dmc-itemcard .callout-title { color: var(--ic-accent) !important; }
+
+/* ---------- Collapsible dashboard sections ---------- */
+details.dmc-collapse { padding:0; }
+.dmc-collapse > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; padding:10px 14px; font-weight:600; }
+.dmc-collapse > summary::-webkit-details-marker { display:none; }
+.dmc-collapse > summary::before { content:'▸'; color: var(--text-muted); transition: transform .15s; display:inline-block; width:10px; }
+.dmc-collapse[open] > summary::before { transform: rotate(90deg); }
+.dmc-collapse > summary:hover { background: var(--background-modifier-hover); border-radius:10px; }
+.dmc-collapse-title { flex:none; }
+.dmc-collapse-body { padding:0 14px 12px; }
+.dmc-collapse-tools { margin-bottom:6px; }
+
+/* ---------- Spell browser ---------- */
+.dmc-filterbar { display:grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap:8px; margin-bottom:8px; }
+.dmc-filterbar .dmc-f select, .dmc-filterbar .dmc-f input { width:100%; }
+.dmc-f-search { grid-column: span 2; }
+.dmc-spell-tools { margin:4px 0 8px; }
+.dmc-spell-tools .dmc-muted { margin-right:auto; }
+.dmc-spell-table { max-height: 60vh; overflow:auto; }
+.dmc-spellgen-name { font-size:1.3em; font-weight:700; color: var(--text-accent); font-variant: small-caps; }
+.dmc-spellgen-out { margin:8px 0; }
+.dmc-f.dmc-inline { min-width:130px; }
+
+/* ---------- Random armory ---------- */
+.dmc-armorygen-out { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap:8px; margin:8px 0; }
+.dmc-loot { border:1px solid var(--background-modifier-border); border-left:4px solid #9a9a9a; border-radius:8px; padding:8px 10px; background: var(--background-primary); }
+.dmc-loot.rarity-common { border-left-color:#9a9a9a; } .dmc-loot.rarity-uncommon { border-left-color:#2e9b4f; } .dmc-loot.rarity-rare { border-left-color:#2f6fde; }
+.dmc-loot.rarity-very-rare { border-left-color:#8b4fd6; } .dmc-loot.rarity-legendary { border-left-color:#e08a1e; } .dmc-loot.rarity-mundane { border-left-color: var(--background-modifier-border); }
+.dmc-loot-head { display:flex; justify-content:space-between; gap:6px; align-items:baseline; }
+.dmc-loot-name { font-weight:700; }
+.dmc-rarity { text-transform: capitalize; }
+.dmc-loot-props { font-size: var(--font-ui-small); }
+.dmc-loot-props ul { margin:4px 0; padding-left:1.2em; }
+
+/* ---------- Forms (restored) ---------- */
+.dmc-form-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:8px 10px; }
+.dmc-f { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.dmc-f label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.dmc-f input, .dmc-f select, .dmc-f textarea { width:100%; }
+.dmc-span2 { grid-column: 1 / -1; }
+.dmc-checks { display:flex; flex-wrap:wrap; gap:4px 14px; }
+.dmc-checks label { color: var(--text-normal); font-size: var(--font-ui-small); display:inline-flex; align-items:center; gap:4px; }
+.dmc-checks input { width:auto; margin:0; }
+.dmc-ta { width:100%; font-family: inherit; font-size: var(--font-ui-small); background: var(--background-primary-alt); color: var(--text-normal); border:1px solid var(--background-modifier-border); border-radius:6px; padding:5px 7px; resize: vertical; }
+.dmc-f.dmc-inline { min-width:130px; }
+
+/* ---------- Shops & tables (restored) ---------- */
+.dmc-shop .dropdown, .dmc-shop select { margin:2px; }
+.dmc-shop-out { margin:8px 0; max-height: 60vh; overflow:auto; }
+.modal .dmc-shop-out { max-height: 55vh; }
+.dmc-shop-out table { width:100%; border-collapse:collapse; font-size: var(--font-ui-small); }
+.dmc-shop-out th, .dmc-shop-out td { border-bottom:1px solid var(--background-modifier-border); padding:3px 6px; text-align:left; }
+.dmc-table-log { max-height: 260px; overflow:auto; }
+.dmc-log-line { padding:4px 0; border-bottom:1px dashed var(--background-modifier-border); }
+.dmc-log-title { font-weight:600; color: var(--text-accent); }
+.dmc-log-insert { cursor:pointer; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.dmc-log-insert:hover { color: var(--text-accent); }
+.dmc-small { padding:1px 8px; font-size: var(--font-ui-smaller); }
+.dmc-table-result { margin: 10px 0; font-size: 1.05em; }
+
+/* ---------- Armory inventory (restored) ---------- */
+.dmc-inv { border:1px solid var(--background-modifier-border); border-radius:8px; padding:8px 10px; background: var(--background-primary); }
+.dmc-inv-head { font-weight:700; margin-bottom:4px; }

@@ -638,6 +638,8 @@ sidequest
 npcgen
 tavern
 shop
+armorygen
+spellgen
 tables
 dice
 tracker
@@ -645,7 +647,6 @@ tracker
 
 ```dm-actions
 builder
-villain
 randommonster
 armory
 weapon
@@ -686,7 +687,7 @@ empty: No saved encounters yet — click Encounter above.
 type: monster
 villain: true
 fields: [cr, creature_type, status]
-empty: No villains yet — click Build villain above.
+empty: No villains yet — click Monster/Villain above and set Kind to Villain.
 ```
 
 ## Story arcs
@@ -790,7 +791,7 @@ title: Weather
 - Right-click a condition chip to remove it; left-click to open its rules note.
 
 ## Monsters, villains & encounters
-- **Build a monster / villain** — *DM Statblocks: Create monster* or *Create villain / bad guy*, the Bestiary tab, or the buttons on [[Home]]. A form captures every statblock field with a **live 2024 statblock preview**, CR guidance, a hit-point calculator, and helpers that write 2024-style **attack** and **saving-throw** entries (pull weapon stats from the Armory). Villains get a profile (goal, lair, minions, weakness) and a scheme clock. Everything saves into the [[Bestiary Index|Bestiary]].
+- **Monster/Villain builder** — *DM Statblocks: Monster/Villain builder*, the Bestiary tab, Quick create, or the button on [[Home]]. Set **Kind** to *Villain* for bad guys. A form captures every statblock field with a **live 2024 statblock preview**, CR guidance, a hit-point calculator, and helpers that write 2024-style **attack** and **saving-throw** entries (pull weapon stats from the Armory). Villains get a profile (goal, lair, minions, weakness) and a scheme clock. Everything saves into the [[Bestiary Index|Bestiary]].
 - **Edit** any statblock with the **Edit** button in its header.
 - **CR check** — the builder reads the stats you've entered (effective HP after resistances and Legendary Resistance, AC, damage per round over three rounds with recharge abilities, attack bonus or save DC), works out a **defensive** and **offensive** CR, and compares their average with the CR you chose: ✓ when it's within one step, ▲/▼ with a one-click **Use CR X** when it isn't. *Apply typical AC/HP* goes the other way and fits the stats to your chosen CR.
 - **Random monster** — shows the **suggested CR** for your settings as you change them (and in CR mode, what difficulty that CR is for your party and which CR would make a Moderate fight). It asks for **party level, party size and difficulty** (Low / Moderate / High) or a CR, how many monsters, creature type, role (brute, skirmisher, controller, leader) and boss (legendary actions). It builds a full statblock you can tweak in the builder, save to the Bestiary, or send to the tracker.
@@ -798,13 +799,16 @@ title: Weather
 
 ## Armory
 - [[Armory Index|Armory]] holds catalogs for all 2024 **weapons** (with mastery), **armor**, common **gear**, and **magic items**.
+- **Random armory** — weapons, armor, gear and magic items with rarity to suit your party's level (named magic weapons with properties and quirks included). Save them or give them straight to a character. It's on the Armory and Generators tabs, Quick create (*Random loot*) and the ` ```random-armory``` ` block.
 - **New weapon / armor / gear / magic item** — forms with live preview (*DM Codex: New Weapon* etc.).
 - **Track who has what** — open an item and run *DM Codex: Give this item to a character*. Catalog items are copied with a `holder` and `base` link; items already held change hands. Each character note lists their **Equipment**, and the Armory tab groups the whole **party inventory** by character (including a *Party stash*).
 
 ## Spells
 - [[Spellcasting Basics|Spellcasting rules]], [[Areas of Effect]], [[Spell Slots by Class]] and the [[Spell List]] (by level and by class).
 - **New spell** — *DM Codex: New Spell* opens a form (level, school, casting time, components, classes, concentration, ritual, effect, upcasting).
-- The dashboard **Spells** tab is searchable; link spells anywhere with `[[Fireball]]`.
+- **Filter spells** by level, school, casting time, class, concentration and ritual on the dashboard's **Spells** tab or in the [[Spell List]], and roll a **random spell** from whatever matches.
+- **Random spell generator** invents a new spell for a level, school and style (attack, area damage, control, utility or healing), with damage scaled by level. Save it as a spell note or insert it into a note.
+- Link spells anywhere with `[[Fireball]]`.
 
 ## Taverns, shops & random tables
 - **Taverns & shops** — tavern/inn, potion shop, general store, blacksmith & armory, magic curios and black market, sized village → metropolis. You get a name, proprietor, first impression, priced menu or inventory (2024 equipment prices; magic items priced by 2024 rarity guidelines), what they buy, rumours and a DM secret. **Save as place** creates the shop (inside a settlement you pick) *and* its proprietor as a linked NPC. Use the ribbon, the dashboard tab, commands, or a ` ```shop``` ` block.
@@ -863,8 +867,17 @@ type: tavern
 size: town
 ```
 
-## Monsters
+## Monsters & villains
 ```monster-tools
+```
+
+## Random armory
+Weapons, armor, gear and magic items, with rarity suited to your party's level (or one you choose). Save them to the Armory or give them straight to a character.
+```random-armory
+```
+
+## Random spell
+```spell-generator
 ```
 
 ## Random tables
