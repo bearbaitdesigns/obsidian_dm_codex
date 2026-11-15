@@ -260,6 +260,25 @@ function button(parent, text, icon, onClick, cls) {
   b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); onClick(e); });
   return b;
 }
+/** Make [[links]] in Markdown rendered inside a custom view clickable (Obsidian only does this in notes). */
+function wireLinks(app, el, sourcePath) {
+  if (el._dmcLinks) return; el._dmcLinks = true;
+  el.addEventListener('click', e => {
+    const a = e.target.closest && e.target.closest('a');
+    if (!a || !el.contains(a)) return;
+    if (a.hasClass ? a.hasClass('internal-link') : a.classList.contains('internal-link')) {
+      e.preventDefault(); e.stopPropagation();
+      const target = a.getAttr ? (a.getAttr('data-href') || a.getAttr('href')) : (a.dataset.href || a.getAttribute('href'));
+      if (target) app.workspace.openLinkText(target, sourcePath || '', Keymap.isModEvent(e));
+    }
+  });
+  el.addEventListener('mouseover', e => {
+    const a = e.target.closest && e.target.closest('a.internal-link');
+    if (!a || !el.contains(a)) return;
+    const target = a.getAttribute('data-href') || a.getAttribute('href');
+    if (target) app.workspace.trigger('hover-link', { event: e, source: 'dm-codex', hoverParent: el, targetEl: a, linktext: target, sourcePath: sourcePath || '' });
+  });
+}
 async function renderMd(app, md, el, sourcePath, component) {
   if (MarkdownRenderer.render) return MarkdownRenderer.render(app, md, el, sourcePath, component);
   return MarkdownRenderer.renderMarkdown(md, el, sourcePath, component);
@@ -422,7 +441,7 @@ class DashboardView extends ItemView {
     const body = el.createDiv({ cls: 'dmc-body' });
     if (this.tab === 'overview') this.renderOverview(body);
     else if (this.tab === 'tools') this.renderTools(body);
-    else if (this.tab === 'idea') { this.plugin.renderCampaignSummary(body, this); this.renderList(body, 'idea'); this.renderList(body, 'arc'); }
+    else if (this.tab === 'idea') { this.renderList(body, 'idea'); this.renderList(body, 'arc'); }
     else if (this.tab === 'threads') {
       const c = body.createDiv({ cls: 'dmc-card' }); const h = c.createEl('h4'); setIcon(h.createSpan({ cls: 'dmc-btn-icon' }), 'list-checks'); h.appendText(' Threads & follow-ups');
       c.createDiv({ cls: 'dmc-muted', text: 'Every checklist item under “Threads & follow-ups” in your session notes. Ticking one here ticks it in the session.', attr: { style: 'margin-bottom:8px' } });
@@ -730,6 +749,7 @@ class DMCodexPlugin extends Plugin {
       child.registerEvent(this.app.metadataCache.on('changed', x => { if (x.path === f.path) draw(); }));
       draw();
     });
+    if (this.registerHoverLinkSource) this.registerHoverLinkSource('dm-codex', { display: 'DM Codex', defaultMod: true });
     this.registerMarkdownCodeBlockProcessor('dm-banner', (src, el, ctx) => this.renderBannerBlock(src, el, ctx));
     this.addCommand({ id: 'edit-banner', name: 'Edit dashboard banner (image, campaign name, second line)', callback: () => new BannerModal(this).open() });
     this.registerMarkdownCodeBlockProcessor('portrait', (src, el, ctx) => this.renderPortrait(src, el, ctx));
@@ -2367,6 +2387,7 @@ Object.assign(DMCodexPlugin.prototype, {
     const comp = new Component(); comp.load();
     // premise
     const prem = card.createDiv({ cls: 'dmc-summary-premise' });
+    if (note) wireLinks(this.app, prem, note.path);
     if (note) {
       const text = await this.app.vault.cachedRead(note);
       const body = text.replace(/^---\n[\s\S]*?\n---\n/, '').replace(/^# .*\n/, '');

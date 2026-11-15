@@ -129,17 +129,19 @@ def owned(base, kind, holder, extra_fm, note):
     src = open(os.path.join(V, f'Armory/{kind}/{base}.md')).read()
     fm, body = src.split('\n---\n', 1)
     fm = fm.replace('holder: ""', f'holder: "[[{holder}]]"').replace('source: SRD 5.2', f'base: "[[{base}]]"' + extra_fm)
-    short = {'Brother Halvard': 'Halvard'}.get(holder, holder.split()[0])
+    short = holder.split()[0]
     body = body.replace(f'# {base}', f'# {base} ({short})\n\n*Copy of [[{base}]] held by [[{holder}]].* {note}', 1)
     body = body.split('## Owned copies')[0]
     w(f'Armory/{kind}/{base} ({short}).md', fm + '\n---\n' + body + '## Notes\n- \n')
-owned('Longsword', 'Weapons', 'Kestrel', '', 'Her old caravan blade, notched from the ambush.')
-owned('Chain Mail', 'Armor', 'Kestrel', '', '')
-owned('Shortsword', 'Weapons', 'Mira Thorne', '', 'Balanced for throwing — she says.')
-owned('Shortbow', 'Weapons', 'Mira Thorne', '', '')
-owned('Mace', 'Weapons', 'Brother Halvard', '', 'Engraved with his order\'s prayer.')
-owned('Shield', 'Armor', 'Brother Halvard', '', '')
-owned('Healer\'s Kit', 'Gear', 'Brother Halvard', '', '')
+owned('Longsword', 'Weapons', 'Eric', '', 'A soldier\'s blade; Orsik engraved a ward-rune on the crossguard years ago.')
+owned('Chain Mail', 'Armor', 'Eric', '', '')
+owned('Shortsword', 'Weapons', 'Sheila', '', 'A parting gift from Garrett.')
+owned('Shortbow', 'Weapons', 'Sheila', '', '')
+owned('Longbow', 'Weapons', 'Hank', '', 'Strung with sinew from a rime wolf.')
+owned('Mace', 'Weapons', 'Muscovy', '', 'Engraved with the Unburnt Covenant\'s open-book sigil.')
+owned('Shield', 'Armor', 'Muscovy', '', '')
+owned('Healer\'s Kit', 'Gear', 'Muscovy', '', '')
+owned('Dagger', 'Weapons', 'Opal', '', 'It is always warm. She thinks that is normal.')
 
 w('Armory/Armory Index.md', '''# Armory
 

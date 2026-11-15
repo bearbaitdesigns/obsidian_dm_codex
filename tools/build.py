@@ -16,7 +16,7 @@ the starter vault only and is never part of the pack.
 import argparse, json, os, re, shutil, struct, subprocess, sys, tempfile, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GENERATORS = ['gen_core', 'gen_rules', 'gen_world', 'gen_armory', 'gen_spells']
+GENERATORS = ['gen_core', 'gen_rules', 'gen_world', 'gen_campaign', 'gen_armory', 'gen_spells']
 PLUGIN_FILES = ['main.js', 'manifest.json', 'styles.css']
 
 

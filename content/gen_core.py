@@ -531,7 +531,7 @@ tags: [campaign]
 ```dndbeyond
 ```
 
-*This note feeds the campaign summary card on the DM Codex dashboard (Overview and Ideas & Arcs tabs).*
+*This note feeds the campaign summary card on the DM Codex dashboard (Overview tab).*
 
 ## Premise
 *Two or three sentences: who the heroes are, what's at stake, what makes this campaign different.*
@@ -881,9 +881,9 @@ Set these properties to links and the right lists fill in on their own:
 
 | On a… | Property | Shows up on |
 | --- | --- | --- |
-| NPC | `location: "[[Briarford]]"` | the place's **Who is here** |
+| NPC | `location: "[[Luskan]]"` | the place's **Who is here** |
 | NPC | `faction: "[[The Ashen Hand]]"` | the faction's **Members** |
-| Place | `parent: "[[Briarford]]"` | the parent's **Points of interest** |
+| Place | `parent: "[[Luskan]]"` | the parent's **Points of interest** |
 | Quest | `location`, `giver` | the place's **Quests here** |
 | Anything | a `[[link]]` anywhere | **Appearances / Session history** (`where: any`) |
 
@@ -945,7 +945,7 @@ title: Weather
 - **Galleries** — place and faction notes have a **Gallery** section. Add several images at once (or drop / paste them), caption them with the pencil, and use the star to pick the cover (the first image, also used as the note's thumbnail). Removing an image from a gallery keeps the file. Images live in the `gallery` property, so renaming an image updates it.
 - **Monster & villain art / import** — in the Creature builder (DM Statblocks), the **Art** section adds an image that shows on the statblock. **Import from an image or text** reads a statblock from a screenshot or photo (OCR — downloads the free Tesseract engine the first time; turn it off in DM Statblocks settings) or from pasted text, then fills in the builder for you to check and save.
 - **Import armory items & spells** — the weapon, armor, gear, magic item and spell forms have the same **Import from an image or text** panel: add a picture (or paste the text) of an item card, equipment table row or spell, click *Read text from image*, then *Fill the form*. Damage, properties, mastery, AC, rarity, attunement, charges, cost and weight are picked out for items; level, school, casting time, range, components, duration, classes and *Using a Higher-Level Spell Slot* for spells. Start from **Import from image** on the Armory tab, **Import spell** on the Spells tab, **Import** in Quick create, or the command *DM Codex: Import an armory item or spell from an image or text*.
-- **Campaign summary** — the card at the top of the dashboard's **Overview** and **Ideas & Arcs** tabs shows the *Premise* and *Where things stand* sections of your **Campaign Summary** note, plus live facts: current arc, sessions played, last and next session, party, open quests, villains and planned encounters. Click a fact to jump to it; **Edit summary** opens the note.
+- **Campaign summary** — the card at the top of the dashboard's **Overview** tab shows the *Premise* and *Where things stand* sections of your **Campaign Summary** note, (links in it open their notes; hover for a preview), plus live facts: current arc, sessions played, last and next session, party, open quests, villains and planned encounters. Click a fact to jump to it; **Edit summary** opens the note.
 - **Story arcs** — the same bar has **Arc**: click **Set arc** to put a session (and its linked prep) in a story arc. New sessions inherit the previous session's arc, and a prep or session you create from its partner inherits it too. Each arc note lists **Sessions in this arc** and **Prep notes in this arc**.
 - **Encounters in sessions and prep** — every Session and Session Prep note has an **Encounters** panel. Click **Add existing** to link a saved encounter, **New encounter** to build one (it's saved to the Encounters tab and linked to the session or prep automatically), or **Suggest** to start from a suggestion. Each encounter in the panel can be **Run** in the tracker, marked **used**, **edited** or **unlinked** (unlinking keeps the encounter). For older session notes, run *DM Statblocks: Insert encounters panel*. **Delete** an encounter from the trash icon on the dashboard's Encounters tab, the **Delete encounter** button on the encounter itself (or in its editor), or *DM Statblocks: Delete an encounter*. It goes to the trash, so it can be recovered. An encounter block inside a session note has **Remove** instead, which deletes just that block.
 
@@ -1046,12 +1046,14 @@ The side quest generator always uses its built-in tables. Anything you list here
 Valid headings: `giver`, `hook`, `objective`, `location`, `complication`, `twist`, `reward`, `urgency`.
 
 ## hook
-- The Ashen Hand has been seen buying every candle in Briarford.
-- A crown-shaped burn mark appears on a farmer's barn door.
+- The Ashen Hand has been seen buying every candle in Luskan.
+- A crown-shaped burn mark appears on a Neverwinter warehouse door.
+- A soup kitchen with a grey hand on the door opens in a new town.
 
 ## location
 - the ruined chapel on Gallows Hill
-- the old mill on the Thornwood road
+- a smuggler's cove north of Luskan
+- a burned waystation on the High Road
 
 ## reward
 - a sliver of the Ashen Crown that whispers useful secrets (and some that are not)
