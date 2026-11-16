@@ -12,7 +12,7 @@ const {
 } = obsidian;
 
 /* Icon helper with fallbacks for older Obsidian versions whose bundled Lucide lacks newer names. */
-const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] , 'image-plus': ['image', 'plus'], 'upload': ['arrow-up', 'file-plus'], 'trending-up': ['arrow-up-right', 'arrow-up'], 'image': ['file'], 'rotate-ccw': ['refresh-ccw', 'undo'], 'scan-text': ['scan', 'file-text'], 'wand': ['wand-sparkles', 'sparkles']};
+const ICON_FALLBACKS = { 'user-round': ['user-2', 'user'], 'wand-sparkles': ['wand-2', 'wand', 'sparkles'], 'arrow-down-wide-narrow': ['sort-desc', 'arrow-down'], 'scroll-text': ['scroll', 'file-text'], 'flask-conical': ['flask-round', 'beaker'], 'dices': ['dice-5', 'dice'], 'dice-5': ['dices', 'dice'], 'backpack': ['briefcase', 'package'], 'list-ordered': ['list'], 'eye-off': ['eye'], 'swords': ['sword', 'crosshair'], 'sword': ['swords', 'crosshair'], 'store': ['shopping-bag', 'home'], 'table': ['table-2', 'grid'], 'crown': ['award', 'star'], 'castle': ['home'], 'hand': ['gift'], 'layers': ['copy'], 'wand': ['wand-2', 'sparkles'], 'skull': ['ghost', 'alert-triangle'], 'beer': ['coffee', 'cup-soda'], 'hammer': ['wrench'], 'text-cursor-input': ['type', 'edit'], 'file-plus': ['file', 'plus'], 'user-plus': ['user', 'plus'] , 'image-plus': ['image', 'plus'], 'upload': ['arrow-up', 'file-plus'], 'trending-up': ['arrow-up-right', 'arrow-up'], 'image': ['file'], 'rotate-ccw': ['refresh-ccw', 'undo'], 'scan-text': ['scan', 'file-text'], 'wand': ['wand-sparkles', 'sparkles'], 'hand-coins': ['coins', 'badge-dollar-sign', 'circle-dollar-sign']};
 function setIcon(el, name) {
   const tryOne = n => { try { if (el.empty) el.empty(); obsidian.setIcon(el, n); } catch (e) { return false; } return !!(el.querySelector && el.querySelector('svg')); };
   if (tryOne(name)) return;
@@ -744,6 +744,7 @@ class DMCodexPlugin extends Plugin {
     for (const k of Object.keys(TYPES)) {
       this.addCommand({ id: 'create-' + k, name: 'New ' + TYPES[k].label, callback: () => this.promptCreate(k) });
     }
+    this.addCommand({ id: 'add-haggle', name: 'Add haggling to this shop or tavern', callback: () => this.addHaggleToActive() });
     this.addCommand({ id: 'insert-link', name: 'Insert link to campaign note…', editorCallback: (editor, ctx) => this.insertLinkPicker(editor, ctx.file, null) });
     for (const k of ['npc', 'place', 'player', 'quest', 'faction', 'session', 'monster', 'encounter', 'spell', 'weapon', 'armor', 'gear', 'item']) {
       this.addCommand({ id: 'insert-link-' + k, name: 'Insert link to ' + TYPES[k].label, editorCallback: (editor, ctx) => this.insertLinkPicker(editor, ctx.file, k) });
@@ -816,6 +817,7 @@ class DMCodexPlugin extends Plugin {
     this.registerMarkdownCodeBlockProcessor('dm-list', (src, el, ctx) => this.renderListBlock(src, el, ctx));
     this.registerMarkdownCodeBlockProcessor('dm-actions', (src, el, ctx) => this.renderActionsBlock(src, el, ctx));
     this.registerMarkdownCodeBlockProcessor('roll-table', (src, el, ctx) => this.renderRollTable(src, el, ctx));
+    this.registerMarkdownCodeBlockProcessor('haggle', (src, el, ctx) => this.renderHaggleBlock(src, el, ctx));
     this.registerMarkdownCodeBlockProcessor('shop', (src, el, ctx) => {
       el.addClass('dmc-block'); lpSafe(el); let o = {}; try { o = parseYaml(src) || {}; } catch (e) {}
       this.renderShopWidget(el, ctx.sourcePath, { kind: o.type || o.kind, size: o.size, autogen: false });
@@ -1238,6 +1240,98 @@ function linkIfExists(app, name) {
   }
   return name;
 }
+/* Haggling: prices are stored as tokens in the generated text and rendered with or without a "Haggle price" column. */
+const priceTok = gp => '⟦P:' + (Math.round(gp * 10000) / 10000) + '⟧';
+/** d20 Charisma (Persuasion) total vs the shopkeeper's DC → percent off (negative = prices go up). */
+function haggleOutcome(total, dc) {
+  if (total == null || Number.isNaN(total)) return null;
+  if (total <= dc - 10) return { pct: -10, label: 'Insulted — prices go up 10%' };
+  if (total < dc) return { pct: 0, label: 'No deal — list price' };
+  if (total >= dc + 10) return { pct: 30, label: 'Exceptional haggling — 30% off' };
+  if (total >= dc + 5) return { pct: 20, label: 'Great deal — 20% off' };
+  return { pct: 10, label: 'Deal — 10% off' };
+}
+const niceGp = v => v >= 10 ? Math.round(v) : v >= 1 ? Math.round(v * 10) / 10 : v; // haggled prices: whole gp, or gp + sp
+function shopMarkdown(shop, h, opt) {
+  const pct = h && h.pct ? h.pct : 0, on = pct !== 0, f = 1 - pct / 100;
+  let md = shop.md
+    .replace(/⟦H⟧/g, on ? ' | Haggle price' : '').replace(/⟦S⟧/g, on ? ' | ---' : '')
+    .replace(/⟦P:([\d.]+)⟧/g, (m, x) => on ? fmtPrice(Number(x)) + ' | **' + fmtPrice(niceGp(Number(x) * f)) + '**' : fmtPrice(Number(x)));
+  const note = opt && opt.block ? haggleBlockSrc({ dc: shop.dc, pct, note: h && h.note }) + '\n\n'
+    : on ? '> [!tip] Haggled ' + (pct > 0 ? pct + '% off' : Math.abs(pct) + '% more') + (h.note ? ' — ' + h.note : '') + '\n\n' : '';
+  return md.replace('⟦HAGGLE⟧', note);
+}
+/* Haggling inside a note: a ```haggle``` block holds the DC and current discount; applying rewrites the note's price tables. */
+function haggleBlockSrc(st) {
+  return '```haggle\ndc: ' + st.dc + '\n' + (st.pct ? 'discount: ' + st.pct + '\n' + (st.note ? 'note: ' + String(st.note).replace(/\n/g, ' ') + '\n' : '') : '') + '```';
+}
+function parseHaggleSrc(src) {
+  const st = { dc: null, pct: 0, note: '' };
+  String(src || '').split('\n').forEach(l => { const m = l.match(/^\s*(dc|discount|note)\s*:\s*(.*)$/i); if (!m) return; const k = m[1].toLowerCase(); if (k === 'dc') st.dc = Number(m[2]) || null; else if (k === 'discount') st.pct = Math.max(-50, Math.min(75, Number(m[2]) || 0)); else st.note = m[2].trim(); });
+  return st;
+}
+/** "62 gp 5 sp", "1,600 gp", "**4 cp**" → gp; null when the cell holds no price. */
+function parsePrice(s) {
+  const t = String(s || '').replace(/[*_,]/g, ''); const re = /(\d+(?:\.\d+)?)\s*(pp|gp|ep|sp|cp)\b/gi; let m, gp = 0, hit = false;
+  while ((m = re.exec(t))) { hit = true; gp += Number(m[1]) * { pp: 10, gp: 1, ep: 0.5, sp: 0.1, cp: 0.01 }[m[2].toLowerCase()]; }
+  return hit ? gp : null;
+}
+/** Guess a DC for a note that has no haggle block yet: "haggle DC N" in its text, else tavern quality, else 13. */
+function guessHaggleDc(text) {
+  const m = text.match(/haggle DC (\d+)/i); if (m) return Number(m[1]);
+  const q = text.match(/\b(Poor|Modest|Comfortable|Wealthy)\b/); return q ? { Poor: 10, Modest: 12, Comfortable: 13, Wealthy: 15 }[q[1]] : 13;
+}
+/** Add, update or remove a "Haggle price" column after every Price / Per night / Cost column in the note's tables. */
+function haggleTables(text, pct) {
+  const f = 1 - pct / 100, lines = text.split('\n');
+  const cells = l => l.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '').split(/(?<!\\)\|/).map(c => c.trim());
+  const join = cs => '| ' + cs.join(' | ') + ' |';
+  const clean = c => c.replace(/[*_]/g, '').trim().toLowerCase();
+  let fence = false;
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (/^\s*(```|~~~)/.test(lines[i])) { fence = !fence; continue; }
+    if (fence || !/^\s*\|/.test(lines[i]) || !/^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) continue;
+    const head = cells(lines[i]); const pc = head.findIndex(c => /^(price|per night|cost|price each|each)$/.test(clean(c)));
+    if (pc < 0) continue;
+    const hc = head.findIndex(c => clean(c) === 'haggle price');
+    let j = i + 2; const body = []; while (j < lines.length && /^\s*\|/.test(lines[j])) body.push(j++);
+    const rows = [i, i + 1, ...body].map(k => cells(lines[k]));
+    rows.forEach((r, n) => {
+      if (hc >= 0) r.splice(hc, 1);
+      if (!pct) return;
+      const v = n === 0 ? 'Haggle price' : n === 1 ? '---' : (() => { const g = parsePrice(r[pc]); return g == null ? '' : '**' + fmtPrice(niceGp(g * f)) + '**'; })();
+      r.splice(pc + 1, 0, v);
+    });
+    [i, i + 1, ...body].forEach((k, n) => { lines[k] = join(rows[n]); });
+    i = j - 1;
+  }
+  return lines.join('\n');
+}
+/** The haggle controls, shared by the shop generator and the ```haggle``` block. apply({pct, note, label, dc}) */
+function haggleBar(hg, st, apply, opt) {
+  opt = opt || {};
+  hg.empty(); hg.addClass('dmc-haggle'); lpSafe(hg);
+  const head = hg.createDiv({ cls: 'dmc-haggle-head' }); setIcon(head.createSpan({ cls: 'dmc-btn-icon' }), 'hand-coins'); head.appendText(' Haggle');
+  let dcIn = null;
+  if (opt.editDc) { head.createSpan({ cls: 'dmc-muted', text: ' DC' }); dcIn = head.createEl('input', { type: 'number', cls: 'dmc-input dmc-haggle-dc', value: String(st.dc), attr: { min: '1', max: '40', title: 'Haggle DC for this shopkeeper' } }); lpSafe(dcIn); dcIn.addEventListener('change', () => { const v = Math.max(1, Math.min(40, Number(dcIn.value) || st.dc)); dcIn.value = String(v); if (v !== st.dc) { st.dc = v; apply({ pct: st.pct, note: st.note, label: 'DC set to ' + v, dc: v }); } }); }
+  else head.createSpan({ cls: 'dmc-pill', text: 'DC ' + st.dc });
+  const dc = () => st.dc;
+  const row = hg.createDiv({ cls: 'dmc-row dmc-wrap' });
+  const tot = row.createEl('input', { type: 'number', cls: 'dmc-input dmc-haggle-num', attr: { placeholder: 'Persuasion total', title: 'The character\'s Charisma (Persuasion) — or Deception/Intimidation — check total' } }); lpSafe(tot);
+  const res = () => hg.querySelector('.dmc-haggle-res');
+  const done = (pct, note, label) => { pctIn.value = String(pct); apply({ pct, note, label, dc: st.dc }); const r = res(); if (r) r.setText(label); };
+  button(row, 'Apply check', 'check', () => { const o = haggleOutcome(Number(tot.value), dc()); if (!o || tot.value === '') { new Notice('Enter the check total first.'); return; } done(o.pct, 'check ' + tot.value + ' vs DC ' + dc() + ': ' + o.label, o.label); });
+  row.createSpan({ cls: 'dmc-muted', text: 'or roll' });
+  const mod = row.createEl('input', { type: 'number', cls: 'dmc-input dmc-haggle-mod', value: '0', attr: { title: 'Persuasion modifier' } }); lpSafe(mod);
+  button(row, 'd20 + mod', 'dices', () => { const d = 1 + Math.floor(Math.random() * 20), m = Number(mod.value) || 0, t = d + m; tot.value = String(t); const o = haggleOutcome(t, dc()); done(o.pct, 'rolled ' + d + (m ? (m > 0 ? ' + ' : ' − ') + Math.abs(m) : '') + ' = ' + t + ' vs DC ' + dc() + ': ' + o.label, (d === 20 ? 'Natural 20! ' : d === 1 ? 'Natural 1. ' : '') + 'Rolled ' + t + ' — ' + o.label); });
+  const row2 = hg.createDiv({ cls: 'dmc-row dmc-wrap' });
+  row2.createSpan({ text: 'Discount' });
+  const pctIn = row2.createEl('input', { type: 'number', cls: 'dmc-input dmc-haggle-pct', value: String(st.pct || 0), attr: { step: '5', min: '-50', max: '75', title: 'Percent off every price (negative = prices go up)' } }); lpSafe(pctIn);
+  row2.createSpan({ text: '% off' });
+  pctIn.addEventListener('change', () => { const v = Math.max(-50, Math.min(75, Number(pctIn.value) || 0)); done(v, v ? 'set by the DM' : '', v ? (v > 0 ? v + '% off' : Math.abs(v) + '% more') : 'List prices'); });
+  button(row2, 'Reset', 'rotate-ccw', () => { tot.value = ''; done(0, '', 'List prices'); }, 'dmc-icon-btn');
+  hg.createDiv({ cls: 'dmc-muted dmc-haggle-res', text: st.pct ? (st.pct > 0 ? st.pct + '% off' : Math.abs(st.pct) + '% more') + (st.note ? ' — ' + st.note : '') : 'Meet the DC: 10% off · beat by 5: 20% · by 10: 30% · fail by 10: prices go up 10%.' });
+}
 function fmtPrice(gp) {
   const cp = Math.max(1, Math.round(gp * 100));
   const g = Math.floor(cp / 100), sp = Math.floor((cp % 100) / 10), c = cp % 10;
@@ -1406,14 +1500,15 @@ Object.assign(DMCodexPlugin.prototype, {
       const dishes = shuffle(TAVERN.dishes).slice(0, 4).map((d, i) => [d, Q.meal * (0.6 + i * 0.25)]);
       const drinks = TAVERN.drinks.filter(d => quality === 'Wealthy' || d[1] < 100).slice(0, quality === 'Poor' ? 5 : 9).map(([d, cp]) => [d, cp * 0.04 * mult]);
       const rumours = shuffle(BUILTIN_TABLES.Social['Tavern rumour']).slice(0, 2);
-      let md = '## ' + name + '\n*' + quality + ' tavern & inn · ' + cap(size) + '*\n\n> [!read-aloud] First impression\n> ' + pick(Q.desc) + ' ' + pick(TAVERN.features) + '.\n\n';
-      md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' innkeeper) — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n**Staff:** ' + staff.join('; ') + '\n\n';
-      md += '### Menu\n| Dish | Price |\n| --- | --- |\n' + dishes.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
-      md += '### Drinks\n| Drink | Price |\n| --- | --- |\n' + drinks.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
-      md += '### Lodging\n| Room | Per night |\n| --- | --- |\n| Common room floor | ' + fmtPrice(Q.room * 0.3) + ' |\n| Private room | ' + fmtPrice(Q.room) + ' |\n' + (quality !== 'Poor' ? '| Suite / best room | ' + fmtPrice(Q.room * 3) + ' |\n' : '') + '| Stabling (per horse) | ' + fmtPrice(0.5) + ' |\n\n';
+      const dc = { Poor: 10, Modest: 12, Comfortable: 13, Wealthy: 15 }[quality] || 13;
+      let md = '## ' + name + '\n*' + quality + ' tavern & inn · ' + cap(size) + ' · haggle DC ' + dc + '*\n\n> [!read-aloud] First impression\n> ' + pick(Q.desc) + ' ' + pick(TAVERN.features) + '.\n\n';
+      md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' innkeeper) — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n**Staff:** ' + staff.join('; ') + '\n\n⟦HAGGLE⟧';
+      md += '### Menu\n| Dish | Price⟦H⟧ |\n| --- | ---⟦S⟧ |\n' + dishes.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + priceTok(p) + ' |').join('\n') + '\n\n';
+      md += '### Drinks\n| Drink | Price⟦H⟧ |\n| --- | ---⟦S⟧ |\n' + drinks.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + priceTok(p) + ' |').join('\n') + '\n\n';
+      md += '### Lodging\n| Room | Per night⟦H⟧ |\n| --- | ---⟦S⟧ |\n| Common room floor | ' + priceTok(Q.room * 0.3) + ' |\n| Private room | ' + priceTok(Q.room) + ' |\n' + (quality !== 'Poor' ? '| Suite / best room | ' + priceTok(Q.room * 3) + ' |\n' : '') + '| Stabling (per horse) | ' + priceTok(0.5) + ' |\n\n';
       md += '### Tonight\n- **Entertainment:** ' + pick(TAVERN.entertainment) + '\n' + patrons.map(p => '- **Patron:** ' + p).join('\n') + '\n\n';
       md += '### Rumours\n' + rumours.map(r => '- ' + r).join('\n') + '\n\n> [!quest] Hook\n> ' + pick(SIDE_QUEST_TABLES.hook) + '\n';
-      return { kind, size, quality, name, owner, md, placeType: 'tavern' };
+      return { kind, size, quality, name, owner, md, dc, placeType: 'tavern' };
     }
     const S = SHOP_DATA[kind];
     const name = pick(S.names[0]) + ' ' + pick(S.names[1]);
@@ -1428,15 +1523,53 @@ Object.assign(DMCodexPlugin.prototype, {
     const magicCount = kind === 'magic' ? { village: 3, town: 6, city: 9, metropolis: 12 }[size] : kind === 'potion' ? { village: 3, town: 5, city: 8, metropolis: 10 }[size] : { village: 0, town: 1, city: 2, metropolis: 3 }[size];
     const magic = shuffle(magicPool).slice(0, magicCount || 0);
     const stock = () => pick(['1', '1', '2', '3', '{1d4+1}', '{1d6}', 'plenty']);
-    let md = '## ' + name + '\n*' + S.label + ' · ' + cap(size) + ' · prices ×' + mult.toFixed(2) + ' (' + haggle[1] + ')*\n\n> [!read-aloud] First impression\n> ' + pick(S.looks) + '\n\n';
-    md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' ' + owner.role + ') — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n';
-    md += '### For sale\n| Item | Price | Stock | Notes |\n| --- | --- | --- | --- |\n';
-    if (S.healing) md += S.healing.map(([n, rar, note, qty]) => '| **' + linkIfExists(this.app, n) + '** | ' + fmtPrice(RARITY_GP[rar] * 0.5 * mult) + ' | ' + rollIn(qty) + ' | *' + rar + ', consumable* — ' + note + ' |').join('\n') + '\n';
-    md += mundane.map(([n, gp, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + fmtPrice(gp * mult) + ' | ' + rollIn(stock()) + ' | ' + (note || '') + ' |').join('\n') + '\n';
-    if (magic.length) md += magic.map(([n, rar, cons, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + fmtPrice(RARITY_GP[rar] * (cons ? 0.5 : 1) * mult) + ' | ' + (rar === 'common' ? rollIn('{1d4}') : '1') + ' | *' + rar + (cons ? ', consumable' : '') + '*' + (note ? ' — ' + note : '') + ' |').join('\n') + '\n';
+    const dc = { 0.8: 10, 0.9: 12, 1: 13, 1.1: 15, 1.25: 17, 1.5: 18 }[haggle[0]] || 13;
+    let md = '## ' + name + '\n*' + S.label + ' · ' + cap(size) + ' · prices ×' + mult.toFixed(2) + ' (' + haggle[1] + ') · haggle DC ' + dc + '*\n\n> [!read-aloud] First impression\n> ' + pick(S.looks) + '\n\n';
+    md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' ' + owner.role + ') — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n⟦HAGGLE⟧';
+    md += '### For sale\n| Item | Price⟦H⟧ | Stock | Notes |\n| --- | ---⟦S⟧ | --- | --- |\n';
+    if (S.healing) md += S.healing.map(([n, rar, note, qty]) => '| **' + linkIfExists(this.app, n) + '** | ' + priceTok(RARITY_GP[rar] * 0.5 * mult) + ' | ' + rollIn(qty) + ' | *' + rar + ', consumable* — ' + note + ' |').join('\n') + '\n';
+    md += mundane.map(([n, gp, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + priceTok(gp * mult) + ' | ' + rollIn(stock()) + ' | ' + (note || '') + ' |').join('\n') + '\n';
+    if (magic.length) md += magic.map(([n, rar, cons, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + priceTok(RARITY_GP[rar] * (cons ? 0.5 : 1) * mult) + ' | ' + (rar === 'common' ? rollIn('{1d4}') : '1') + ' | *' + rar + (cons ? ', consumable' : '') + '*' + (note ? ' — ' + note : '') + ' |').join('\n') + '\n';
     md += '\n*Magic item prices follow the 2024 rarity guideline (Common 100 gp, Uncommon 400 gp, Rare 4,000 gp, Very Rare 40,000 gp; consumables half), adjusted by this shop\'s multiplier.*\n\n';
     md += '### Will buy\n' + S.buys.map(b => '- ' + b).join('\n') + '\n\n> [!secret] Shop secret (DM only)\n> ' + pick(S.secrets) + '\n';
-    return { kind, size, name, owner, md, placeType: 'shop' };
+    return { kind, size, name, owner, md, dc, placeType: 'shop' };
+  },
+  renderHaggleBlock(src, el, ctx) {
+    el.addClass('dmc-block'); lpSafe(el);
+    const file = this.app.vault.getAbstractFileByPath(ctx.sourcePath);
+    const st = parseHaggleSrc(src); if (!st.dc) st.dc = 13;
+    const hg = el.createDiv();
+    haggleBar(hg, st, async o => {
+      if (!(file instanceof TFile)) { new Notice('Haggling needs a saved note.'); return; }
+      st.pct = o.pct; st.note = o.note; if (o.dc) st.dc = o.dc;
+      await this.applyHaggle(file, st);
+    }, { editDc: true });
+  },
+  async applyHaggle(file, st) {
+    await this.app.vault.process(file, text => {
+      const blk = haggleBlockSrc(st);
+      text = /```haggle[^\n]*\n[\s\S]*?```/.test(text) ? text.replace(/```haggle[^\n]*\n[\s\S]*?```/, () => blk) : text;
+      return haggleTables(text, st.pct || 0);
+    });
+  },
+  async addHaggleToActive() {
+    const file = this.app.workspace.getActiveFile();
+    if (!file || file.extension !== 'md') { new Notice('Open a shop or tavern note first.'); return; }
+    let added = false;
+    await this.app.vault.process(file, text => {
+      if (/```haggle/.test(text)) return text;
+      const blk = haggleBlockSrc({ dc: guessHaggleDc(text), pct: 0 }) + '\n';
+      const lines = text.split('\n');
+      let at = lines.findIndex(l => /^\*\*(Staff|Proprietor):\*\*/.test(l));
+      if (at >= 0) { if (lines[at].startsWith('**Proprietor:**') && lines[at + 2] && lines[at + 2].startsWith('**Staff:**')) at += 2; at += 1; lines.splice(at, 0, '', blk.trimEnd()); }
+      else {
+        const t = lines.findIndex((l, i) => /^\s*\|/.test(l) && lines[i + 1] && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1]) && /\|\s*\**\s*(price|per night|cost)\s*\**\s*\|/i.test(l));
+        if (t >= 0) { let h = t; while (h > 0 && /^#{1,6} /.test(lines[h - 1]) === false && lines[h - 1].trim() !== '') h--; if (h > 0 && /^#{1,6} /.test(lines[h - 1])) h--; lines.splice(h, 0, blk); }
+        else lines.push('', blk.trimEnd());
+      }
+      added = true; return lines.join('\n');
+    });
+    new Notice(added ? 'Haggling added — set the DC in the haggle bar.' : 'This note already has haggling.');
   },
   renderShopWidget(container, sourcePath, opts, onDone) {
     opts = opts || {};
@@ -1447,18 +1580,21 @@ Object.assign(DMCodexPlugin.prototype, {
     const sizeSel = mkSel([['village', 'Village'], ['town', 'Town'], ['city', 'City'], ['metropolis', 'Metropolis']], opts.size || 'town');
     const qSel = mkSel([['', 'Any quality'], ['Poor', 'Poor'], ['Modest', 'Modest'], ['Comfortable', 'Comfortable'], ['Wealthy', 'Wealthy']], '');
     const syncQ = () => { qSel.style.display = kindSel.value === 'tavern' ? '' : 'none'; }; kindSel.addEventListener('change', syncQ); syncQ();
+    const hg = wrap.createDiv({ cls: 'dmc-haggle' });
     const out = wrap.createDiv({ cls: 'dmc-shop-out' });
     const actions = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
-    let shop = null;
+    let shop = null, haggle = { pct: 0, note: '' };
+    const md = () => shop ? shopMarkdown(shop, haggle) : '';
+    const drawHaggle = () => { hg.empty(); if (!shop) return; haggleBar(hg, { dc: shop.dc, pct: haggle.pct, note: haggle.note }, o => { haggle = { pct: o.pct, note: o.note }; draw(); }); };
     wireLinks(this.app, out, sourcePath || '');
-    const draw = async () => { out.empty(); if (!shop) { out.createDiv({ cls: 'dmc-muted', text: 'Pick a shop type and press Generate.' }); return; } const comp = new Component(); comp.load(); await renderMd(this.app, shop.md, out, sourcePath || '', comp); };
-    const gen = () => { shop = this.generateShop(kindSel.value, sizeSel.value, qSel.value); draw(); };
+    const draw = async () => { out.empty(); if (!shop) { out.createDiv({ cls: 'dmc-muted', text: 'Pick a shop type and press Generate.' }); return; } const comp = new Component(); comp.load(); await renderMd(this.app, md(), out, sourcePath || '', comp); };
+    const gen = () => { shop = this.generateShop(kindSel.value, sizeSel.value, qSel.value); haggle = { pct: 0, note: '' }; drawHaggle(); draw(); };
     button(ctr, 'Generate', 'sparkles', gen, 'mod-cta');
     button(actions, 'Save as place', 'file-plus', async () => {
       if (!shop) return;
       const parents = this.getNotes('place');
       const doSave = async parent => {
-        const file = await this.createNote('place', shop.name, { fields: { place_type: shop.placeType, parent: parent ? '[[' + parent.basename + ']]' : undefined, proprietor: '[[' + shop.owner.name + ']]' }, body: '## Generated details\n' + shop.md.replace(/^## .*\n/, ''), noOpen: true });
+        const file = await this.createNote('place', shop.name, { fields: { place_type: shop.placeType, parent: parent ? '[[' + parent.basename + ']]' : undefined, proprietor: '[[' + shop.owner.name + ']]' }, body: '## Generated details\n' + shopMarkdown(shop, haggle, { block: true }).replace(/^## .*\n/, ''), noOpen: true });
         await this.createNote('npc', shop.owner.name, { fields: { role: shop.owner.role, species: shop.owner.species, location: '[[' + file.basename + ']]', attitude: 'indifferent' }, body: '## Generated details\n- **Look:** ' + shop.owner.look + '\n- **Voice:** ' + shop.owner.voice + '\n- **Wants:** ' + shop.owner.want, noOpen: true });
         this.app.workspace.getLeaf(false).openFile(file); if (onDone) onDone();
       };
@@ -1466,8 +1602,8 @@ Object.assign(DMCodexPlugin.prototype, {
       const items = [{ basename: '— No parent (standalone)', none: true }, ...parents];
       new NoteSuggestModal(this.app, items, f => doSave(f.none ? null : f), 'Which settlement is it in?').open();
     }, 'mod-cta');
-    button(actions, 'Insert into note', 'text-cursor-input', () => { if (!shop) return; const ed = this.app.workspace.activeEditor && this.app.workspace.activeEditor.editor; if (ed) { ed.replaceSelection('\n' + shop.md + '\n'); if (onDone) onDone(); } else new Notice('Open a note first.'); });
-    button(actions, 'Copy', 'copy', () => { if (!shop) return; try { navigator.clipboard.writeText(shop.md); new Notice('Copied'); } catch (e) { new Notice('Copy not available'); } });
+    button(actions, 'Insert into note', 'text-cursor-input', () => { if (!shop) return; const ed = this.app.workspace.activeEditor && this.app.workspace.activeEditor.editor; if (ed) { ed.replaceSelection('\n' + md() + '\n'); if (onDone) onDone(); } else new Notice('Open a note first.'); });
+    button(actions, 'Copy', 'copy', () => { if (!shop) return; try { navigator.clipboard.writeText(md()); new Notice('Copied'); } catch (e) { new Notice('Copy not available'); } });
     if (opts.autogen !== false) gen(); else draw();
   },
 

@@ -405,3 +405,11 @@ a.dmc-btn.dmc-ddb .dmc-btn-icon { color:#e40712; }
 .dmc-import-status { min-height:1.2em; margin:4px 0; font-size: var(--font-ui-small); }
 .dmc-ok { color: var(--color-green); } .dmc-warn { color: var(--color-orange); }
 .dmc-drop.is-dragover { border-color: var(--interactive-accent); background: var(--background-modifier-hover); }
+
+/* ---------- haggling ---------- */
+.dmc-haggle { border: 1px solid var(--background-modifier-border); border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: var(--background-secondary); display: flex; flex-direction: column; gap: 6px; }
+.dmc-haggle:empty { display: none; }
+.dmc-haggle-head { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.dmc-haggle-num { width: 9em; } .dmc-haggle-mod { width: 4.5em; } .dmc-haggle-pct { width: 5em; } .dmc-haggle-dc { width: 4em; margin-left: 4px; }
+.dmc-block > .dmc-haggle { margin: 0; border: none; padding: 0; background: none; }
+.dmc-haggle-res { font-size: var(--font-ui-small); }
