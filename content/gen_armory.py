@@ -92,7 +92,6 @@ G = [  # name, category, cost, weight, desc
  ('Alchemist\'s Fire','Consumable','50 gp','1 lb.','Thrown flask of sticky fire.'),
  ('Acid','Consumable','25 gp','1 lb.','Thrown vial of corrosive acid.'),
  ('Holy Water','Consumable','25 gp','1 lb.','Harms Fiends and Undead.'),
- ('Potion of Healing','Consumable','50 gp','1/2 lb.','Regain 2d4 + 2 Hit Points.'),
  ('Manacles','Adventuring Gear','2 gp','6 lb.',''),
  ('Spyglass','Adventuring Gear','1,000 gp','1 lb.','Objects appear twice as close.'),
  ('Tent','Adventuring Gear','2 gp','20 lb.','Sleeps up to two Small or Medium creatures.'),
@@ -115,6 +114,53 @@ for n, cat, cost, wt, d in G:
     fm = f'---\ntype: gear\ncategory: {q(cat)}\ncost: {q(cost)}\nweight: {q(wt)}\nholder: ""\nquantity: 1\nsource: SRD 5.2\ntags: [armory, gear]\n---\n'
     body = f'# {n}\n\n> [!info] {cat}\n> **Cost:** {cost} · **Weight:** {wt}\n\n{d}\n\n## Owned copies\n```dm-list\nwhere: base\nfields: [holder, quantity]\nempty: No one owns one yet.\n```\n' + SRC
     w(f'Armory/Gear/{n}.md', fm + body)
+
+# ---------------- Potions (2024 SRD 5.2 magic items; summaries in our own words) ----------------
+PCOST = {'common': '50 gp', 'uncommon': '200 gp', 'rare': '2,000 gp', 'very rare': '20,000 gp', 'legendary': '100,000 gp'}
+POTIONS = [
+ # name, rarity, effect (short), full text
+ ('Potion of Healing', 'common', 'Regain 2d4 + 2 HP', 'You regain 2d4 + 2 Hit Points when you drink this potion. Drinking or administering a potion is a Bonus Action.'),
+ ('Potion of Greater Healing', 'uncommon', 'Regain 4d4 + 4 HP', 'You regain 4d4 + 4 Hit Points when you drink this potion.'),
+ ('Potion of Superior Healing', 'rare', 'Regain 8d4 + 8 HP', 'You regain 8d4 + 8 Hit Points when you drink this potion.'),
+ ('Potion of Supreme Healing', 'very rare', 'Regain 10d4 + 20 HP', 'You regain 10d4 + 20 Hit Points when you drink this potion.'),
+ ('Potion of Climbing', 'common', 'Climb Speed for 1 hour', 'For 1 hour you have a Climb Speed equal to your Speed and Advantage on Strength (Athletics) checks to climb.'),
+ ('Potion of Animal Friendship', 'uncommon', 'Charm Beasts for 1 hour', 'For 1 hour you can cast *Animal Friendship* (save DC 13) at will.'),
+ ('Potion of Fire Breath', 'uncommon', 'Breathe fire (4d6, DC 13)', 'For 1 hour, as a Bonus Action you can exhale fire at a target within 30 feet: it makes a DC 13 Dexterity save, taking 4d6 Fire damage on a failure or half on a success. The effect ends after three exhalations or when the hour is up.'),
+ ('Potion of Growth', 'uncommon', 'Enlarge for 10 minutes', 'You gain the "enlarge" effect of the *Enlarge/Reduce* spell for 10 minutes (no Concentration).'),
+ ('Potion of Hill Giant Strength', 'uncommon', 'Strength 21 for 1 hour', 'Your Strength score becomes 21 for 1 hour (no effect if it is already 21 or higher).'),
+ ('Potion of Poison', 'uncommon', 'Looks like healing; 4d6 Poison', 'Looks, smells and tastes like a Potion of Healing. When you drink it you make a DC 13 Constitution save: on a failure you take 4d6 Poison damage and have the Poisoned condition for 1 hour; on a success, half damage and not Poisoned.'),
+ ('Potion of Pugilism', 'uncommon', 'Unarmed strikes deal extra damage', 'For 10 minutes your Unarmed Strikes deal an extra 1d6 Force damage on a hit.'),
+ ('Potion of Resistance', 'uncommon', 'Resistance to one damage type, 1 hour', 'You have Resistance to one damage type (chosen when the potion is made: Acid, Cold, Fire, Force, Lightning, Necrotic, Poison, Psychic, Radiant or Thunder) for 1 hour.'),
+ ('Potion of Water Breathing', 'uncommon', 'Breathe underwater for 24 hours', 'You can breathe underwater for 24 hours.'),
+ ('Philter of Love', 'uncommon', 'Charmed by the next creature you see', 'The next time you see a creature within 10 minutes of drinking this philter, you have the Charmed condition toward it for 1 hour.'),
+ ('Oil of Slipperiness', 'uncommon', 'Freedom of movement for 8 hours', 'Spread on a Medium or smaller creature, it grants the effect of *Freedom of Movement* for 8 hours. Poured on the ground, it covers a 10-foot square as the *Grease* spell for 8 hours.'),
+ ('Potion of Clairvoyance', 'rare', 'Cast Clairvoyance', 'You gain the effect of the *Clairvoyance* spell (no Concentration).'),
+ ('Potion of Diminution', 'rare', 'Reduce for 1d4 hours', 'You gain the "reduce" effect of the *Enlarge/Reduce* spell for 1d4 hours (no Concentration).'),
+ ('Potion of Gaseous Form', 'rare', 'Gaseous Form for 1 hour', 'You gain the effect of the *Gaseous Form* spell for 1 hour (no Concentration), or until you end it as a Bonus Action.'),
+ ('Potion of Frost Giant Strength', 'rare', 'Strength 23 for 1 hour', 'Your Strength score becomes 23 for 1 hour.'),
+ ('Potion of Stone Giant Strength', 'rare', 'Strength 23 for 1 hour', 'Your Strength score becomes 23 for 1 hour.'),
+ ('Potion of Fire Giant Strength', 'rare', 'Strength 25 for 1 hour', 'Your Strength score becomes 25 for 1 hour.'),
+ ('Potion of Heroism', 'rare', '10 temp HP and Bless, 1 hour', 'For 1 hour you have 10 Temporary Hit Points and the effect of the *Bless* spell (no Concentration).'),
+ ('Potion of Invulnerability', 'rare', 'Resistance to all damage, 1 minute', 'For 1 minute you have Resistance to all damage.'),
+ ('Potion of Mind Reading', 'rare', 'Cast Detect Thoughts (DC 13)', 'You gain the effect of the *Detect Thoughts* spell (save DC 13) for 10 minutes (no Concentration).'),
+ ('Oil of Etherealness', 'rare', 'Etherealness for 1 hour', 'Applied to a Medium or smaller creature, it grants the effect of the *Etherealness* spell for 1 hour.'),
+ ('Elixir of Health', 'rare', 'Cures diseases and conditions', 'Drinking it cures any disease and ends the Blinded, Deafened, Paralyzed and Poisoned conditions.'),
+ ('Potion of Cloud Giant Strength', 'very rare', 'Strength 27 for 1 hour', 'Your Strength score becomes 27 for 1 hour.'),
+ ('Potion of Flying', 'very rare', 'Fly Speed for 1 hour', 'For 1 hour you have a Fly Speed equal to your Speed and can hover.'),
+ ('Potion of Invisibility', 'very rare', 'Invisible for 1 hour', 'You have the Invisible condition for 1 hour. It ends early if you make an attack roll, deal damage or cast a spell.'),
+ ('Potion of Longevity', 'very rare', 'Become younger', 'Your physical age is reduced by 1d6 + 6 years (minimum 13). Each later Potion of Longevity has a cumulative 10% chance to age you instead.'),
+ ('Potion of Speed', 'very rare', 'Haste for 1 minute', 'You gain the effect of the *Haste* spell for 1 minute (no Concentration), without the lethargy when it ends.'),
+ ('Potion of Vitality', 'very rare', 'Cure Exhaustion; max healing dice', 'Removes any Exhaustion levels and cures any disease or poison affecting you. For 24 hours you regain the maximum number of Hit Points for any Hit Point Die you spend.'),
+ ('Oil of Sharpness', 'very rare', '+3 to a slashing or piercing weapon, 1 hour', 'Coats one Slashing or Piercing weapon (or up to 5 pieces of such ammunition); for 1 hour it becomes magic with a +3 bonus to attack and damage rolls.'),
+ ('Potion of Storm Giant Strength', 'legendary', 'Strength 29 for 1 hour', 'Your Strength score becomes 29 for 1 hour.'),
+]
+for n, rar, eff, text in POTIONS:
+    cost = PCOST[rar]
+    fm = f'---\ntype: item\nitem_type: Potion\nrarity: {rar}\nattunement: false\ncost: {q(cost)}\neffect: {q(eff)}\nholder: ""\nsource: SRD 5.2\ntags: [armory, item, potion]\n---\n'
+    body = (f'# {n}\n\n> [!info] Potion, {rar}\n> **Cost:** {cost} · **Effect:** {eff}\n\n{text}\n\n'
+            '*Cost follows the 2024 guideline for consumables (half the rarity value; a Potion of Healing is 50 gp).*\n\n'
+            '## Owned copies\n```dm-list\nwhere: base\nfields: [holder, quantity]\nempty: No one owns one yet.\n```\n' + SRC)
+    w(f'Armory/Potions/{n}.md', fm + body)
 
 # move the example magic item into the armory
 old = os.path.join(V, 'World/Items/Shard of the Ashen Crown.md')
@@ -151,6 +197,7 @@ weapon
 armor
 gear
 item
+potion
 armorygen
 give
 ```
@@ -197,6 +244,15 @@ type: gear
 holder: ""
 sort: category
 fields: [category, cost, weight]
+```
+
+## Potions
+Every potion in the 2024 rules, plus any you create or import (set *Item type* to Potion).
+```dm-list
+type: item
+item_type: Potion
+sort: rarity
+fields: [rarity, cost, effect, holder]
 ```
 
 ## Magic items

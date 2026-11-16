@@ -927,6 +927,8 @@ title: Weather
 - Click an **attack bonus** to roll to hit (Shift = advantage, Alt = disadvantage). Click **damage dice** to roll damage (Shift = crit, double dice). Click ability mods and saves to roll them.
 - **Add to combat** on any statblock sends it to the initiative tracker. **Add party** pulls every `type: player` note with `status: active` (uses `ac`, `hp_max`, `init_bonus`, `level`).
 - In the tracker, type `-7` (damage), `+5` (heal), `t8` (temp HP) or `-2d6+3` in the HP box and press Enter. Bloodied is tracked automatically; concentration DCs pop up when a concentrating creature takes damage.
+- Click a creature's **max HP** (the number after the slash) to override it — type a number or dice like `6d10+12`. Damage already taken is kept; the override shows in colour, and hovering it shows the statblock's original value.
+- Clicking a creature's name opens its note — or switches to its tab if it's already open (Ctrl/Cmd-click always opens a new tab).
 - Right-click a condition chip to remove it; left-click to open its rules note.
 
 ## Monsters, villains & encounters
@@ -952,7 +954,8 @@ title: Weather
 ## Armory
 - [[Armory Index|Armory]] holds catalogs for all 2024 **weapons** (with mastery), **armor**, common **gear**, and **magic items**.
 - **Random armory** — weapons, armor, gear and magic items with rarity to suit your party's level (named magic weapons with properties and quirks included). Save them or give them straight to a character. It's on the Armory and Generators tabs, Quick create (*Random loot*) and the ` ```random-armory``` ` block.
-- **New weapon / armor / gear / magic item** — forms with live preview (*DM Codex: New Weapon* etc.).
+- **Potions** — every potion in the 2024 rules (healing to giant strength) with its cost and effect, plus every potion you create, import or generate (any magic item whose *Item type* is Potion). On the dashboard's Armory tab they have their own section, sorted by rarity; costs you haven't set show the 2024 guideline price for a consumable of that rarity.
+- **New weapon / armor / gear / magic item** — forms with live preview (*DM Codex: New Weapon* etc.). Magic items have an optional *Cost* field.
 - **Track who has what** — open an item and run *DM Codex: Give this item to a character*. Catalog items are copied with a `holder` and `base` link; items already held change hands. Each character note lists their **Equipment**, and the Armory tab groups the whole **party inventory** by character (including a *Party stash*).
 
 ## Spells
@@ -963,7 +966,7 @@ title: Weather
 - Link spells anywhere with `[[Fireball]]`.
 
 ## Taverns, shops & random tables
-- **Taverns & shops** — tavern/inn, potion shop, general store, blacksmith & armory, magic curios and black market, sized village → metropolis. You get a name, proprietor, first impression, priced menu or inventory (2024 equipment prices; magic items priced by 2024 rarity guidelines), what they buy, rumours and a DM secret. **Save as place** creates the shop (inside a settlement you pick) *and* its proprietor as a linked NPC. Use the ribbon, the dashboard tab, commands, or a ` ```shop``` ` block.
+- **Taverns & shops** — tavern/inn, potion shop, general store, blacksmith & armory, magic curios and black market, sized village → metropolis. You get a name, proprietor, first impression, priced menu or inventory (2024 equipment prices; magic items priced by 2024 rarity guidelines), what they buy, rumours and a DM secret. **Save as place** creates the shop (inside a settlement you pick) *and* its proprietor as a linked NPC. Use the ribbon, the dashboard tab, commands, or a ` ```shop``` ` block. A potion shop always stocks every healing potion (Healing, Greater, Superior, Supreme), listed first. Any item in a shop or on a tavern menu that has a note in your vault is a link to it.
 - **Random tables** — built into DM Codex: weather, encounters (road, forest, urban), dungeon dressing, traps, rumours, tavern events, NPC quirks, plot twists, treasure, pocket contents, trinkets, magic item quirks and names. Roll from the **Random Tables** tab, the ribbon or *DM Codex: Roll on a random table*; insert results into your note. Every ` ```roll-table``` ` you write in any note is added automatically, and `table: Weather` inside a roll-table block reuses a built-in table.
 
 ## Updating the vault (without losing anything)

@@ -449,7 +449,21 @@ class DashboardView extends ItemView {
     }
     else if (this.tab === 'session') { this.renderList(body, 'session'); this.renderList(body, 'prep'); }
     else if (this.tab === 'faction') { this.renderList(body, 'faction'); }
-    else if (this.tab === 'armory') { this.plugin.renderArmory(body, this); ['weapon', 'armor', 'gear', 'item'].forEach(k => this.renderList(body, k, { collapsible: true })); }
+    else if (this.tab === 'armory') {
+      const p = this.plugin; this.plugin.renderArmory(body, this);
+      ['weapon', 'armor', 'gear'].forEach(k => this.renderList(body, k, { collapsible: true }));
+      this.renderList(body, 'item', { collapsible: true, filter: f => !p.isPotion(f) });
+      this.renderList(body, 'item', { collapsible: true, key: 'list-potion', title: 'Potions', icon: 'flask-conical', filter: f => p.isPotion(f), newLabel: 'New potion',
+        onNew: () => p.openItemBuilder('item', { item_type: 'Potion', rarity: 'common' }),
+        cols: ['rarity', 'cost', 'effect', 'source', 'holder'],
+        sort: (a, b) => (RARITY_ORDER[String(p.fm(a).rarity).toLowerCase()] ?? 9) - (RARITY_ORDER[String(p.fm(b).rarity).toLowerCase()] ?? 9) || a.basename.localeCompare(b.basename),
+        cell: (c, f, fm, td) => {
+          if (c === 'cost') { const pc = p.potionCost(fm); td.setText(pc.text); if (pc.derived) { td.addClass('dmc-muted'); td.setAttr('title', 'No cost set — 2024 guideline for a ' + (fm.rarity || 'common') + ' consumable'); } return true; }
+          if (c === 'effect') { td.setText(stripLinks(fm.effect || '')); td.addClass('dmc-cell-wrap'); return true; }
+          if (c === 'source') { td.setText(fm.source ? String(fm.source).replace(/^SRD.*$/i, 'Rules') : 'Homebrew'); return true; }
+          return false;
+        } });
+    }
     else if (this.tab === 'spell') { const c = body.createDiv({ cls: 'dmc-card' }); c.createEl('h4', { text: 'Spells' }); this.plugin.renderSpellBrowser(c, ''); this.plugin.renderSpellGenWidget(this.collapsible(body, 'spellgen', 'Random spell generator', 'sparkles'), null); }
     else if (this.tab === 'shops') { const c = body.createDiv({ cls: 'dmc-card' }); this.plugin.renderShopWidget(c, null, {}); }
     else if (this.tab === 'tables') { this.plugin.renderTablesPanel(body); }
@@ -500,6 +514,7 @@ class DashboardView extends ItemView {
         ['Magic item', 'gem', create('item'), 'New magic item'],
         ['Spell', 'wand-sparkles', create('spell'), 'New spell'],
         ['Random loot', 'sparkles', () => new ArmoryGenModal(p).open(), 'Random weapons, armor, gear and magic items'],
+        ['Potion', 'flask-conical', () => p.openItemBuilder('item', { item_type: 'Potion', rarity: 'common' }), 'New potion — appears in the Armory\'s Potions section'],
         ['Import', 'scan-text', () => new ImportKindModal(p).open(), 'Import a weapon, armor, gear, magic item or spell from a picture or pasted text'],
       ] },
       { title: 'Generators', icon: 'sparkles', items: [
@@ -602,7 +617,7 @@ class DashboardView extends ItemView {
   renderList(body, type, opts = {}) {
     const p = this.plugin; let card, head;
     if (opts.collapsible) {
-      card = this.collapsible(body, 'list-' + type, opts.title || TYPES[type].plural, TYPES[type].icon, p.getNotes(type).length);
+      card = this.collapsible(body, opts.key || ('list-' + type), opts.title || TYPES[type].plural, opts.icon || TYPES[type].icon, p.getNotes(type).filter(opts.filter || (() => true)).length);
       head = card.createDiv({ cls: 'dmc-row dmc-spread dmc-collapse-tools' }); head.createDiv();
     } else {
       card = body.createDiv({ cls: 'dmc-card' });
@@ -612,15 +627,17 @@ class DashboardView extends ItemView {
     const right = head.createDiv({ cls: 'dmc-row' });
     const search = right.createEl('input', { type: 'search', cls: 'dmc-input dmc-search', attr: { placeholder: 'Filter…' } });
     search.value = this.filter;
-    button(right, 'New ' + TYPES[type].label, 'plus', () => p.promptCreate(type), opts.collapsible ? '' : 'mod-cta');
+    button(right, opts.newLabel || ('New ' + TYPES[type].label), 'plus', opts.onNew || (() => p.promptCreate(type)), opts.collapsible ? '' : 'mod-cta');
     const tableWrap = card.createDiv();
     const draw = () => {
       tableWrap.empty();
       let files = type === 'session' ? p.getSessionsSorted().reverse() : p.getNotes(type).sort((a, b) => type === 'spell' ? ((Number(p.fm(a).level) || 0) - (Number(p.fm(b).level) || 0) || a.basename.localeCompare(b.basename)) : a.basename.localeCompare(b.basename));
+      if (opts.filter) files = files.filter(opts.filter);
+      if (opts.sort) files.sort(opts.sort);
       const q = search.value.toLowerCase();
       if (q) files = files.filter(f => (f.basename + ' ' + JSON.stringify(p.fm(f))).toLowerCase().includes(q));
       if (!files.length) { tableWrap.createDiv({ cls: 'dmc-muted', text: 'Nothing here yet.' }); return; }
-      const cols = COLUMNS[type] || [];
+      const cols = opts.cols || COLUMNS[type] || [];
       const t = tableWrap.createEl('table', { cls: 'dmc-table' });
       const tr = t.createEl('thead').createEl('tr'); tr.createEl('th', { text: 'Name' });
       cols.forEach(c => tr.createEl('th', { text: COLUMN_LABELS[c] || c.replace(/_/g, ' ') }));
@@ -632,6 +649,7 @@ class DashboardView extends ItemView {
         { const td = r.createEl('td'); if (['player', 'npc', 'monster', 'place', 'faction'].includes(type)) { td.addClass('dmc-name-cell'); p.avatar(td, f); } this.link(td, f); }
         cols.forEach(c => {
           const td = r.createEl('td'); const v = fm[c];
+          if (opts.cell && opts.cell(c, f, fm, td)) return;
           const links = typeof v === 'string' || Array.isArray(v) ? (JSON.stringify(v).includes('[[') ? extractLinks(v) : []) : [];
           if (links.length) links.forEach((l, i) => {
             const dest = this.app.metadataCache.getFirstLinkpathDest(l, f.path);
@@ -1124,6 +1142,7 @@ class DMCodexPlugin extends Plugin {
       else if (k === 'builder') button(row, 'Creature', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-monster'));
       else if (k === 'villain') button(row, 'Creature', 'skull', () => this.app.commands.executeCommandById('dm-statblocks:new-villain'));
       else if (k === 'armorygen') button(row, 'Random loot', 'gem', () => new ArmoryGenModal(this).open());
+      else if (k === 'potion') button(row, 'New potion', 'flask-conical', () => this.openItemBuilder('item', { item_type: 'Potion', rarity: 'common' }));
       else if (k === 'spellgen') button(row, 'Random spell', 'wand-sparkles', () => new SpellGenModal(this).open());
       else if (k === 'randommonster') button(row, 'Random creature', 'dices', () => this.app.commands.executeCommandById('dm-statblocks:random-monster'));
       else if (k === 'armory') button(row, 'Armory', 'sword', () => this.app.commands.executeCommandById('dm-codex:open-armory'));
@@ -1201,13 +1220,34 @@ const cap = s => String(s).charAt(0).toUpperCase() + String(s).slice(1);
 /* Taverns & shops                                                     */
 /* ================================================================== */
 
+/** "[[Name]]" if a note with that name (or a close variant) exists, else the plain name. */
+const _normName = t => String(t).toLowerCase().replace(/\bfeet\b/g, 'ft').replace(/[^a-z0-9]/g, '');
+let _linkIndex = null, _linkIndexAt = 0;
+function linkIfExists(app, name) {
+  if (!app) return name;
+  const base = String(name).replace(/\*\*/g, '');
+  if (!_linkIndex || Date.now() - _linkIndexAt > 5000) {          // name index of armory / spell / rules notes, refreshed every few seconds
+    _linkIndex = new Map(); _linkIndexAt = Date.now();
+    for (const f of app.vault.getMarkdownFiles()) { const k = _normName(f.basename); if (!_linkIndex.has(k) || !/\(/.test(f.basename)) _linkIndex.set(k, f); }
+  }
+  const tries = [base, base.replace(/,\s*[^(]+(?=\s*\()/, ''), base.replace(/\s*\([^)]*\)\s*$/, ''), base.replace(/,\s*[^,]+$/, ''), base.split(',')[0].trim()];
+  for (const t of tries) {
+    if (!t) continue;
+    const f = app.metadataCache.getFirstLinkpathDest(t, '') || _linkIndex.get(_normName(t));
+    if (f && f.extension === 'md') return f.basename === base ? '[[' + f.basename + ']]' : '[[' + f.basename + '\\|' + base + ']]'; // \| keeps table cells intact
+  }
+  return name;
+}
 function fmtPrice(gp) {
   const cp = Math.max(1, Math.round(gp * 100));
-  if (cp % 100 === 0) return (cp / 100).toLocaleString() + ' gp';
-  if (cp >= 100) { const g = Math.floor(cp / 100), r = cp % 100; return g.toLocaleString() + ' gp' + (r % 10 === 0 ? ' ' + r / 10 + ' sp' : ' ' + r + ' cp'); }
-  if (cp % 10 === 0) return cp / 10 + ' sp';
-  return cp + ' cp';
+  const g = Math.floor(cp / 100), sp = Math.floor((cp % 100) / 10), c = cp % 10;
+  const parts = [];
+  if (g) parts.push(g.toLocaleString() + ' gp');
+  if (sp) parts.push(sp + ' sp');
+  if (c) parts.push(c + ' cp');
+  return parts.join(' ');
 }
+const RARITY_ORDER = { common: 0, uncommon: 1, rare: 2, 'very rare': 3, legendary: 4, artifact: 5 };
 const RARITY_GP = { common: 100, uncommon: 400, rare: 4000, 'very rare': 40000, legendary: 200000 }; // 2024 guideline; consumables half
 const SIZE_RARITY = { village: ['common'], town: ['common', 'uncommon'], city: ['common', 'uncommon', 'rare'], metropolis: ['common', 'uncommon', 'rare', 'very rare'] };
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -1220,7 +1260,9 @@ const SHOP_DATA = {
     names: [['The Bubbling', 'The Copper', 'The Green', 'The Hissing', 'The Gilded', 'The Crooked', 'Mother Ashby\'s', 'The Moonlit'], ['Cauldron', 'Alembic', 'Phial', 'Mortar', 'Retort', 'Remedy', 'Tincture', 'Still']],
     looks: ['Shelves of coloured glass glint in candlelight; something on the stove smells of burnt sugar.', 'Dried herbs hang from every rafter and a cat sleeps on the counter beside a skull.', 'Spotless white tiles, labelled drawers, and a faint smell of vinegar and lightning.', 'A cramped cellar shop. Bottles clink when anyone walks overhead.'],
     mundane: [['Healer\'s Kit', 5, '10 uses; stabilise without a check'], ['Antitoxin', 50, 'Advantage on saves vs Poisoned for 1 hour'], ['Acid (vial)', 25, 'Thrown; Dex save or 2d6 Acid'], ['Alchemist\'s Fire', 50, 'Thrown; Dex save or 1d4 Fire and burning'], ['Holy Water (flask)', 25, 'Thrown; 2d8 Radiant to Fiends/Undead'], ['Basic Poison (vial)', 100, 'Coat a weapon; extra 1d4 Poison'], ['Perfume (vial)', 5, ''], ['Herbalism Kit', 5, ''], ['Oil (flask)', 0.1, ''], ['Soothing salve (local remedy)', 1, 'Flavour item'], ['Smelling salts', 0.5, 'Flavour item']],
-    magic: [['Potion of Healing', 'common', true, 'Regain 2d4 + 2 HP'], ['Potion of Climbing', 'common', true, 'Climb Speed for 1 hour'], ['Potion of Greater Healing', 'uncommon', true, 'Regain 4d4 + 4 HP'], ['Potion of Animal Friendship', 'uncommon', true, ''], ['Potion of Fire Breath', 'uncommon', true, ''], ['Potion of Water Breathing', 'uncommon', true, ''], ['Potion of Resistance', 'uncommon', true, 'One damage type, 1 hour'], ['Potion of Growth', 'uncommon', true, ''], ['Potion of Hill Giant Strength', 'uncommon', true, ''], ['Oil of Slipperiness', 'uncommon', true, ''], ['Philter of Love', 'uncommon', true, ''], ['Potion of Poison', 'uncommon', true, 'Looks like a healing potion'], ['Potion of Superior Healing', 'rare', true, 'Regain 8d4 + 8 HP'], ['Potion of Heroism', 'rare', true, ''], ['Potion of Invulnerability', 'rare', true, ''], ['Potion of Mind Reading', 'rare', true, ''], ['Potion of Gaseous Form', 'rare', true, ''], ['Potion of Diminution', 'rare', true, ''], ['Elixir of Health', 'rare', true, ''], ['Potion of Supreme Healing', 'very rare', true, 'Regain 10d4 + 20 HP'], ['Potion of Flying', 'very rare', true, ''], ['Potion of Speed', 'very rare', true, ''], ['Potion of Invisibility', 'very rare', true, '']],
+    // healing tonics: always in stock at a potion shop, listed first, whatever the settlement size
+    healing: [['Potion of Healing', 'common', 'Regain 2d4 + 2 HP', 'plenty'], ['Potion of Greater Healing', 'uncommon', 'Regain 4d4 + 4 HP', '{1d4+1}'], ['Potion of Superior Healing', 'rare', 'Regain 8d4 + 8 HP', '{1d3}'], ['Potion of Supreme Healing', 'very rare', 'Regain 10d4 + 20 HP', '1']],
+    magic: [['Potion of Climbing', 'common', true, 'Climb Speed for 1 hour'], ['Potion of Animal Friendship', 'uncommon', true, ''], ['Potion of Fire Breath', 'uncommon', true, ''], ['Potion of Water Breathing', 'uncommon', true, ''], ['Potion of Resistance', 'uncommon', true, 'One damage type, 1 hour'], ['Potion of Growth', 'uncommon', true, ''], ['Potion of Hill Giant Strength', 'uncommon', true, ''], ['Oil of Slipperiness', 'uncommon', true, ''], ['Philter of Love', 'uncommon', true, ''], ['Potion of Poison', 'uncommon', true, 'Looks like a healing potion'], ['Potion of Heroism', 'rare', true, ''], ['Potion of Invulnerability', 'rare', true, ''], ['Potion of Mind Reading', 'rare', true, ''], ['Potion of Gaseous Form', 'rare', true, ''], ['Potion of Diminution', 'rare', true, ''], ['Elixir of Health', 'rare', true, ''], ['Potion of Supreme Healing', 'very rare', true, 'Regain 10d4 + 20 HP'], ['Potion of Flying', 'very rare', true, ''], ['Potion of Speed', 'very rare', true, ''], ['Potion of Invisibility', 'very rare', true, '']],
     buys: ['Rare herbs and fungi (Nature check to identify)', 'Monster parts: venom sacs, troll blood, wyvern stingers', 'Empty vials at 1 cp each'],
     secrets: ['Half the "healing" stock is watered down — roll a d6: on a 1 it heals only 1 HP.', 'The owner brews poisons for the local thieves\' guild.', 'One bottle on the top shelf holds a trapped imp who offers deals.', 'The alchemist is secretly testing an experimental elixir on customers.'],
   },
@@ -1366,8 +1408,8 @@ Object.assign(DMCodexPlugin.prototype, {
       const rumours = shuffle(BUILTIN_TABLES.Social['Tavern rumour']).slice(0, 2);
       let md = '## ' + name + '\n*' + quality + ' tavern & inn · ' + cap(size) + '*\n\n> [!read-aloud] First impression\n> ' + pick(Q.desc) + ' ' + pick(TAVERN.features) + '.\n\n';
       md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' innkeeper) — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n**Staff:** ' + staff.join('; ') + '\n\n';
-      md += '### Menu\n| Dish | Price |\n| --- | --- |\n' + dishes.map(([d, p]) => '| ' + d + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
-      md += '### Drinks\n| Drink | Price |\n| --- | --- |\n' + drinks.map(([d, p]) => '| ' + d + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
+      md += '### Menu\n| Dish | Price |\n| --- | --- |\n' + dishes.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
+      md += '### Drinks\n| Drink | Price |\n| --- | --- |\n' + drinks.map(([d, p]) => '| ' + linkIfExists(this.app, d) + ' | ' + fmtPrice(p) + ' |').join('\n') + '\n\n';
       md += '### Lodging\n| Room | Per night |\n| --- | --- |\n| Common room floor | ' + fmtPrice(Q.room * 0.3) + ' |\n| Private room | ' + fmtPrice(Q.room) + ' |\n' + (quality !== 'Poor' ? '| Suite / best room | ' + fmtPrice(Q.room * 3) + ' |\n' : '') + '| Stabling (per horse) | ' + fmtPrice(0.5) + ' |\n\n';
       md += '### Tonight\n- **Entertainment:** ' + pick(TAVERN.entertainment) + '\n' + patrons.map(p => '- **Patron:** ' + p).join('\n') + '\n\n';
       md += '### Rumours\n' + rumours.map(r => '- ' + r).join('\n') + '\n\n> [!quest] Hook\n> ' + pick(SIDE_QUEST_TABLES.hook) + '\n';
@@ -1389,8 +1431,9 @@ Object.assign(DMCodexPlugin.prototype, {
     let md = '## ' + name + '\n*' + S.label + ' · ' + cap(size) + ' · prices ×' + mult.toFixed(2) + ' (' + haggle[1] + ')*\n\n> [!read-aloud] First impression\n> ' + pick(S.looks) + '\n\n';
     md += '**Proprietor:** ' + owner.name + ' (' + owner.species + ' ' + owner.role + ') — ' + owner.look + '; ' + owner.voice + '. *Wants:* ' + owner.want + '.\n\n';
     md += '### For sale\n| Item | Price | Stock | Notes |\n| --- | --- | --- | --- |\n';
-    md += mundane.map(([n, gp, note]) => '| ' + n + ' | ' + fmtPrice(gp * mult) + ' | ' + rollIn(stock()) + ' | ' + (note || '') + ' |').join('\n') + '\n';
-    if (magic.length) md += magic.map(([n, rar, cons, note]) => '| ' + n + ' | ' + fmtPrice(RARITY_GP[rar] * (cons ? 0.5 : 1) * mult) + ' | ' + (rar === 'common' ? rollIn('{1d4}') : '1') + ' | *' + rar + (cons ? ', consumable' : '') + '*' + (note ? ' — ' + note : '') + ' |').join('\n') + '\n';
+    if (S.healing) md += S.healing.map(([n, rar, note, qty]) => '| **' + linkIfExists(this.app, n) + '** | ' + fmtPrice(RARITY_GP[rar] * 0.5 * mult) + ' | ' + rollIn(qty) + ' | *' + rar + ', consumable* — ' + note + ' |').join('\n') + '\n';
+    md += mundane.map(([n, gp, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + fmtPrice(gp * mult) + ' | ' + rollIn(stock()) + ' | ' + (note || '') + ' |').join('\n') + '\n';
+    if (magic.length) md += magic.map(([n, rar, cons, note]) => '| ' + linkIfExists(this.app, n) + ' | ' + fmtPrice(RARITY_GP[rar] * (cons ? 0.5 : 1) * mult) + ' | ' + (rar === 'common' ? rollIn('{1d4}') : '1') + ' | *' + rar + (cons ? ', consumable' : '') + '*' + (note ? ' — ' + note : '') + ' |').join('\n') + '\n';
     md += '\n*Magic item prices follow the 2024 rarity guideline (Common 100 gp, Uncommon 400 gp, Rare 4,000 gp, Very Rare 40,000 gp; consumables half), adjusted by this shop\'s multiplier.*\n\n';
     md += '### Will buy\n' + S.buys.map(b => '- ' + b).join('\n') + '\n\n> [!secret] Shop secret (DM only)\n> ' + pick(S.secrets) + '\n';
     return { kind, size, name, owner, md, placeType: 'shop' };
@@ -1407,6 +1450,7 @@ Object.assign(DMCodexPlugin.prototype, {
     const out = wrap.createDiv({ cls: 'dmc-shop-out' });
     const actions = wrap.createDiv({ cls: 'dmc-row dmc-wrap' });
     let shop = null;
+    wireLinks(this.app, out, sourcePath || '');
     const draw = async () => { out.empty(); if (!shop) { out.createDiv({ cls: 'dmc-muted', text: 'Pick a shop type and press Generate.' }); return; } const comp = new Component(); comp.load(); await renderMd(this.app, shop.md, out, sourcePath || '', comp); };
     const gen = () => { shop = this.generateShop(kindSel.value, sizeSel.value, qSel.value); draw(); };
     button(ctr, 'Generate', 'sparkles', gen, 'mod-cta');
@@ -1587,6 +1631,7 @@ class ItemBuilderModal extends Modal {
       const attune = fEl(g, 'Requires attunement', attS);
       g = sec('Charges & ownership');
       const charges = fEl(g, 'Charges (optional)', inp('text', I('charges', ''), '7, regains 1d6+1 at dawn'));
+      const icost = fEl(g, 'Cost (optional)', inp('text', I('cost', ''), 'e.g. 50 gp — blank: by rarity'));
       const holder = holderSel();
       g = sec('Effect');
       const desc = fEl(g, 'What it does', ta(I('desc', ''), 'Describe the effect. [[Links]] to conditions and spells work.', 6), true);
@@ -1594,6 +1639,7 @@ class ItemBuilderModal extends Modal {
       this.build = () => {
         const att = attune.value === 'false' ? false : attune.value === 'true' ? true : attune.value;
         const fm = { type: 'item', item_type: kind.value, rarity: rarity.value, attunement: att, charges: charges.value, holder: this.holderLink(holder.value), tags: ['armory', 'item'] };
+        if (icost.value.trim()) fm.cost = icost.value.trim();
         return { fm, body: '*' + kind.value + ', ' + rarity.value + (att ? ' (requires attunement' + (typeof att === 'string' ? ' ' + att : '') + ')' : '') + '*\n\n## Properties\n' + (desc.value || '') + (charges.value ? '\n\n**Charges:** ' + charges.value : '') + (curse.value ? '\n\n> [!secret] Curse / quirk\n> ' + curse.value : '') + '\n\n## History & lore\n' };
       };
     } else if (this.kind === 'spell') {
@@ -1694,12 +1740,23 @@ Object.assign(DMCodexPlugin.prototype, {
       }, { value: '1', cta: 'Give' }).open();
     }, 'Give “' + file.basename + '” to…').open();
   },
+  isPotion(f) {
+    const fm = this.fm(f);
+    return /potion|elixir|philter|oil/i.test(String(fm.item_type || '')) || /^(potion|oil|philter|elixir)\b/i.test(f.basename);
+  },
+  potionCost(fm) {
+    const c = fm.cost || fm.value;
+    if (c != null && String(c).trim() !== '') return { text: /\d$/.test(String(c).trim()) ? String(c).trim() + ' gp' : String(c).trim(), derived: false };
+    const r = String(fm.rarity || 'common').toLowerCase();
+    return { text: fmtPrice((RARITY_GP[r] || 100) * 0.5), derived: true };
+  },
   renderArmory(body, view) {
     const bar = body.createDiv({ cls: 'dmc-row dmc-wrap', attr: { style: 'margin-bottom:8px' } });
     button(bar, 'New weapon', 'sword', () => this.openItemBuilder('weapon'));
     button(bar, 'New armor', 'shield', () => this.openItemBuilder('armor'));
     button(bar, 'New gear', 'backpack', () => this.openItemBuilder('gear'));
     button(bar, 'New magic item', 'gem', () => this.openItemBuilder('item'));
+    button(bar, 'New potion', 'flask-conical', () => this.openItemBuilder('item', { item_type: 'Potion', rarity: 'common' }));
     button(bar, 'Random armory', 'sparkles', () => new ArmoryGenModal(this).open());
     button(bar, 'Import from image', 'scan-text', () => new ImportKindModal(this, ['weapon', 'armor', 'gear', 'item']).open());
     const owned = ['weapon', 'armor', 'gear', 'item'].flatMap(k => this.getNotes(k)).filter(f => String(this.fm(f).holder || '').trim());
